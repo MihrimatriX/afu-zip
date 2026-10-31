@@ -62,7 +62,7 @@
             </ScrollViewer>
 
             <!-- Resim: yakınlaştırılabilir; açılışta panele sığdırılır -->
-            <ScrollViewer x:Name="ImageScroller" ZoomMode="Enabled" MinZoomFactor="0.05" MaxZoomFactor="16"
+            <ScrollViewer x:Name="ImageScroller" ZoomMode="Enabled" MinZoomFactor="0.1" MaxZoomFactor="16"
                           HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
                           HorizontalScrollMode="Enabled" VerticalScrollMode="Enabled"
                           Visibility="{x:Bind ViewModel.IsImageVisible, Mode=OneWay}"
