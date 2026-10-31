@@ -223,7 +223,10 @@ public sealed class ArchiveTabViewModel(ArchiveOpener opener, TaskQueue tasks, I
                 Status = $"{entry.Name} açılamadı: {result.Failed.FirstOrDefault()?.Reason ?? result.Blocked.FirstOrDefault()?.Reason}";
                 return;
             }
-            Process.Start(new ProcessStartInfo(SafePath.ResolveTarget(dir, entry.Path)) { UseShellExecute = true });
+            var file = SafePath.ResolveTarget(dir, entry.Path);
+            Process.Start(new ProcessStartInfo(file) { UseShellExecute = true });
+            if (CanEdit)
+                WatchExternalEdit(entry.Path, file);
         }
         catch (Exception ex) when (ex is IOException or System.ComponentModel.Win32Exception or ArchivePasswordException)
         {
@@ -503,6 +506,163 @@ public sealed class ArchiveTabViewModel(ArchiveOpener opener, TaskQueue tasks, I
         return done.Task.WaitAsync(ct);
     }
 
+    // --- Dışarı sürükleme -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Explorer'a sürüklenen öğeler bırakıldığı anda geçici klasöre çıkarılır; Explorer dosyaları oradan kopyalar.
+    /// Klasör yapısı korunur, sürüklenen en üst öğelerin yolları döner.
+    /// </summary>
+    public async Task<IReadOnlyList<string>> ExtractForDragAsync(IReadOnlyList<EntryItem> items, CancellationToken ct = default)
+    {
+        if (!HasArchive || items.Count == 0)
+            return [];
+        var level = Current;
+        var dir = Path.Combine(TempFolders.DragRoot, Guid.NewGuid().ToString("N"));
+        var indices = level.Tree.CollectIndices(items.Select(i => i.Item));
+        var result = await level.Reader.ExtractAsync(indices, new ExtractionOptions(dir) { Passwords = passwords }, null, ct);
+        if (result.Failed.Count > 0)
+            Status = $"Sürüklenen {result.Failed.Count:N0} öğe çıkarılamadı: {result.Failed[0].Reason}";
+        return [.. items.Select(i => SafePath.ResolveTarget(dir, i.Path.TrimEnd('/'))).Where(p => File.Exists(p) || Directory.Exists(p))];
+    }
+
+    // --- Dışarıda düzenleme ----------------------------------------------------------------------
+
+    private readonly List<ExternalEdit> _edits = [];
+
+    /// <summary>Varsayılan uygulamada açılıp kaydedilen, arşive henüz yazılmamış dosyalar.</summary>
+    public bool HasPendingEdits => _edits.Any(e => e.IsPending);
+
+    public string PendingEditsMessage => _edits.Where(e => e.IsPending).ToList() switch
+    {
+        [] => "",
+        [var only] => $"\"{Path.GetFileName(only.EntryPath)}\" başka bir programda değiştirildi. Arşivdeki dosya güncellensin mi?",
+        var many => $"{many.Count:N0} dosya başka programlarda değiştirildi. Arşivdekiler güncellensin mi?",
+    };
+
+    private void WatchExternalEdit(string entryPath, string file)
+    {
+        if (_edits.Any(e => string.Equals(e.FilePath, file, StringComparison.OrdinalIgnoreCase)))
+            return;
+        var ui = SynchronizationContext.Current;
+        var edit = new ExternalEdit(entryPath, file);
+        // Düzenleyiciler genelde geçici dosyaya yazıp yeniden adlandırır: Created/Renamed de izlenir.
+        void OnChanged(object? sender, FileSystemEventArgs e) => ui?.Post(_ => _ = CheckExternalEditAsync(edit), null);
+        edit.Watcher.Changed += OnChanged;
+        edit.Watcher.Created += OnChanged;
+        edit.Watcher.Renamed += (sender, e) => OnChanged(sender, e);
+        _edits.Add(edit);
+    }
+
+    private async Task CheckExternalEditAsync(ExternalEdit edit)
+    {
+        if (edit.IsChecking || _disposed)
+            return;
+        edit.IsChecking = true;
+        try
+        {
+            // Kaydetme birkaç olay üretir ve dosya bir süre kilitli kalır: durulmasını bekle.
+            for (var attempt = 0; attempt < 10; attempt++)
+            {
+                await Task.Delay(700);
+                if (edit.IsUnlockedAndChanged())
+                {
+                    edit.IsPending = true;
+                    NotifyEdits();
+                    return;
+                }
+            }
+        }
+        finally
+        {
+            edit.IsChecking = false;
+        }
+    }
+
+    /// <summary>Değişen dosyalar arşivdeki yerlerine (aynı klasör, aynı ad) yazılır.</summary>
+    public void ApplyExternalEdits()
+    {
+        if (!CanEdit)
+        {
+            Status = "Arşiv şu an düzenlenemiyor (başka bir değişiklik sürüyor olabilir); biraz sonra tekrar deneyin.";
+            return;
+        }
+        var pending = _edits.Where(e => e.IsPending).ToList();
+        foreach (var group in pending.GroupBy(e => ArchiveTree.Parent(e.EntryPath)))
+        {
+            var files = group.Select(e => e.FilePath).ToList();
+            var names = string.Join(", ", group.Select(e => Path.GetFileName(e.EntryPath)));
+            Edit($"Güncelleniyor: {names}",
+                new ArchiveUpdate { Add = files, AddToFolder = group.Key, OnConflict = ConflictPolicy.Replace },
+                $"{names} arşivde güncellendi");
+        }
+        foreach (var edit in pending)
+            edit.Accept();
+        NotifyEdits();
+    }
+
+    public void DismissExternalEdits()
+    {
+        foreach (var edit in _edits.Where(e => e.IsPending))
+            edit.Accept();
+        NotifyEdits();
+    }
+
+    private void NotifyEdits()
+    {
+        OnPropertyChanged(nameof(HasPendingEdits));
+        OnPropertyChanged(nameof(PendingEditsMessage));
+    }
+
+    private sealed class ExternalEdit : IDisposable
+    {
+        private DateTime _stamp;
+        private long _length;
+
+        public ExternalEdit(string entryPath, string filePath)
+        {
+            EntryPath = entryPath;
+            FilePath = filePath;
+            Accept();
+            Watcher = new FileSystemWatcher(Path.GetDirectoryName(filePath)!, Path.GetFileName(filePath))
+            {
+                NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size | NotifyFilters.FileName,
+                EnableRaisingEvents = true,
+            };
+        }
+
+        public string EntryPath { get; }
+        public string FilePath { get; }
+        public FileSystemWatcher Watcher { get; }
+        public bool IsPending { get; set; }
+        public bool IsChecking { get; set; }
+
+        /// <summary>Şimdiki hali "bilinen" kabul edilir (yazıldı ya da yok sayıldı).</summary>
+        public void Accept()
+        {
+            IsPending = false;
+            var info = new FileInfo(FilePath);
+            (_stamp, _length) = info.Exists ? (info.LastWriteTimeUtc, info.Length) : (default, -1);
+        }
+
+        public bool IsUnlockedAndChanged()
+        {
+            var info = new FileInfo(FilePath);
+            if (!info.Exists || (info.LastWriteTimeUtc == _stamp && info.Length == _length))
+                return false;
+            try
+            {
+                using var _ = new FileStream(FilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                return true;
+            }
+            catch (IOException)
+            {
+                return false; // hâlâ yazılıyor
+            }
+        }
+
+        public void Dispose() => Watcher.Dispose();
+    }
+
     // --- Arama -----------------------------------------------------------------------------------
 
     private async Task SearchAsync(string query)
@@ -643,6 +803,9 @@ public sealed class ArchiveTabViewModel(ArchiveOpener opener, TaskQueue tasks, I
     public async ValueTask DisposeAsync()
     {
         _disposed = true;
+        foreach (var edit in _edits)
+            edit.Dispose();
+        _edits.Clear();
         Preview.Clear();
         _searchCts?.Cancel();
 
@@ -678,12 +841,12 @@ internal static class TempFolders
 {
     public static string OpenRoot => Path.Combine(Path.GetTempPath(), "AfuZip", "open");
 
+    public static string DragRoot => Path.Combine(Path.GetTempPath(), "AfuZip", "drag");
+
     public static void CleanupStale(TimeSpan olderThan)
     {
         NestedArchive.CleanupStale(olderThan);
-        if (!Directory.Exists(OpenRoot))
-            return;
-        foreach (var dir in Directory.EnumerateDirectories(OpenRoot))
+        foreach (var dir in new[] { OpenRoot, DragRoot }.Where(Directory.Exists).SelectMany(Directory.EnumerateDirectories))
         {
             try
             {

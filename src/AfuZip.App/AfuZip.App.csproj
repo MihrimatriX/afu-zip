@@ -7,11 +7,12 @@
     <RootNamespace>AfuZip.App</RootNamespace>
     <AssemblyName>AfuZip</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\AfuZip.ico</ApplicationIcon>
     <UseWinUI>true</UseWinUI>
     <EnableMsixTooling>true</EnableMsixTooling>
 
-    <!-- Faz 0: paketlenmemiş (unpackaged) ve Windows App SDK uygulamayla birlikte gelir.
-         MSIX paketleme Faz 4'te; Windows 11 bağlam menüsü paket kimliği ister. -->
+    <!-- Paketlenmemiş (unpackaged) ve Windows App SDK uygulamayla birlikte gelir: klasörden çalışır, kurulum gerekmez.
+         Explorer menüsü HKCU kayıtlarıyla eklenir (Ayarlar); Windows 11'in yeni menüsü paket kimliği ister. -->
     <WindowsPackageType>None</WindowsPackageType>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
 
@@ -84,6 +85,10 @@
                CopyToOutputDirectory="PreserveNewest" />
     </ItemGroup>
   </Target>
+
+  <ItemGroup>
+    <Content Include="Assets\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\AfuZip.Core\AfuZip.Core.csproj" />

@@ -30,7 +30,7 @@
         <!-- Başlık çubuğu -->
         <Grid x:Name="AppTitleBar" Padding="16,0,140,0">
             <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                <FontIcon Glyph="&#xF012;" FontSize="14" />
+                <Image x:Name="TitleIcon" Width="16" Height="16" />
                 <TextBlock Text="AFU Zip" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center" />
             </StackPanel>
         </Grid>
@@ -57,7 +57,7 @@
         <!-- Karşılama: hiç sekme yokken -->
         <Grid Grid.Row="1" Visibility="{x:Bind ViewModel.IsWelcomeVisible, Mode=OneWay}">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16" MaxWidth="560">
-                <FontIcon Glyph="&#xF012;" FontSize="56" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                <Image x:Name="WelcomeIcon" Width="72" Height="72" />
                 <TextBlock Text="Arşiv aç ya da buraya sürükle" Style="{StaticResource SubtitleTextBlockStyle}" HorizontalAlignment="Center" />
                 <TextBlock HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" Style="{StaticResource CaptionTextBlockStyle}"
                            Foreground="{ThemeResource TextFillColorTertiaryBrush}"
@@ -79,6 +79,14 @@
                         </StackPanel>
                     </Button>
                 </StackPanel>
+
+                <InfoBar x:Name="ShellSuggestion" IsClosable="True" Severity="Informational" Margin="0,8,0,0"
+                         Title="Explorer'a ekleyin"
+                         Message="Arşivlere sağ tıklayınca &quot;Buraya çıkar&quot;, dosyalara sağ tıklayınca &quot;Sıkıştır&quot; çıksın.">
+                    <InfoBar.ActionButton>
+                        <Button Content="Sağ tık menüsüne ekle" Click="OnSuggestionRegister" />
+                    </InfoBar.ActionButton>
+                </InfoBar>
 
                 <StackPanel Spacing="4" Visibility="{x:Bind ViewModel.HasRecent, Mode=OneWay}">
                     <TextBlock Text="Son açılanlar" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,16,0,0" />
@@ -147,8 +155,34 @@
             </ListView>
         </Expander>
 
-        <TextBlock Grid.Row="3" Margin="16,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
-                   Style="{StaticResource CaptionTextBlockStyle}"
-                   Text="{x:Bind ViewModel.Status, Mode=OneWay}" />
+        <Grid Grid.Row="3" Padding="16,0,8,0" ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                       Style="{StaticResource CaptionTextBlockStyle}"
+                       Text="{x:Bind ViewModel.Status, Mode=OneWay}" />
+            <Button Grid.Column="1" Padding="8,2" Background="Transparent" BorderThickness="0"
+                    ToolTipService.ToolTip="Ayarlar">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <FontIcon Glyph="&#xE713;" FontSize="12" />
+                    <TextBlock Text="Ayarlar" Style="{StaticResource CaptionTextBlockStyle}" />
+                </StackPanel>
+                <Button.Flyout>
+                    <Flyout Placement="TopEdgeAlignedRight" Opening="OnSettingsOpening">
+                        <StackPanel Spacing="12" Width="340">
+                            <TextBlock Text="Windows ile bütünleşme" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                            <ToggleSwitch x:Name="ShellToggle" Header="Explorer sağ tık menüsü ve &quot;Birlikte aç&quot;"
+                                          Toggled="OnShellToggled" />
+                            <TextBlock TextWrapping="Wrap" Style="{StaticResource CaptionTextBlockStyle}"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                       Text="Arşivlerde: aç, buraya çıkar, klasöre çıkar, test et. Her dosya ve klasörde: arşive ekle, 7z veya zip olarak sıkıştır. Windows 11'de &quot;Daha fazla seçenek göster&quot; altında görünür. Yalnızca sizin kullanıcı hesabınız için kaydedilir." />
+                            <HyperlinkButton Padding="0" Content="Varsayılan arşiv uygulaması yap…" Click="OnOpenDefaultApps" />
+                        </StackPanel>
+                    </Flyout>
+                </Button.Flyout>
+            </Button>
+        </Grid>
     </Grid>
 </Window>

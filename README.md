@@ -18,14 +18,15 @@
   <img src="https://img.shields.io/badge/lisans-MIT-green" alt="MIT">
 </p>
 
-> **Geliştirme önizlemesi (v0.3).** Faz 1–3 kodu tamam; derlenmiş sürüm henüz yok. Platformdan bağımsız testler
-> CI'da geçiyor; 7z.dll ve WinUI tarafı ilk kez Windows'ta deneniyor. Hata bulursanız
-> [issue açın](https://github.com/MihrimatriX/afu-zip/issues).
+> **Geliştirme önizlemesi (v0.4).** Kurulum gerektirmeyen paketler [Releases](https://github.com/MihrimatriX/afu-zip/releases)
+> sayfasında: zip'i açıp `AfuZip.exe`'yi çalıştırın. Hata bulursanız [issue açın](https://github.com/MihrimatriX/afu-zip/issues).
 
 - **Her biçimi açar:** 7z, ZIP, RAR, TAR ve sıkıştırılmış türleri, ISO, CAB, WIM ve 7-Zip'in tanıdığı ~50 biçim; iç içe arşivler aynı sekmede.
 - **Diske yazmadan önizler:** kod (Monaco), Markdown, JSON/XML ağacı, SVG, PDF, resim, video/ses, hex. Tür içerikten anlaşılır.
 - **Amaç seçerek sıkıştırır:** Hızlı, Dengeli, Maksimum, Paylaşım, Geliştirici; boyut ve süre tahminiyle. AES-256, cilt bölme.
 - **Arşivi yerinde düzenler:** ekle, sil, yeniden adlandır; yarıda kalan işlem eski arşivi bozmaz.
+- **Windows ile bütünleşir:** Explorer sağ tık menüsü (buraya çıkar, klasöre çıkar, 7z/zip olarak sıkıştır), "Birlikte aç",
+  Explorer'a sürükleyip bırakma, dışarıda düzenlenen dosyayı arşive geri yazma, görev çubuğunda ilerleme, bildirimler.
 - **Güvenli varsayılanlar:** zip slip, zip bomb, ADS ve aygıt adlarına karşı korumalı çıkarma; Mark-of-the-Web korunur.
 
 ## Gereksinimler
@@ -115,6 +116,24 @@ Seçilen dosya diske yazılmadan açılır ve türü uzantıdan değil **içerik
   (ReplaceFile: "internetten geldi" işareti ve izinler korunur); iptal veya hata eski arşivi bozmaz. Hatalı (eksik cilt,
   yarım indirme) ve ciltli arşivler düzenlenmez. Oluşturma diyaloğu var olan arşivin üzerine yazılacaksa uyarır.
 
+## Windows entegrasyonu (Faz 4)
+
+Uygulamada **Ayarlar → Explorer sağ tık menüsü** açılınca (yalnızca geçerli kullanıcı için, yönetici izni gerekmez):
+
+| Nerede | Komutlar |
+| --- | --- |
+| Arşivlere sağ tık → **AFU Zip** | AFU Zip'te aç, Buraya çıkar (akıllı), Arşiv adıyla klasöre çıkar, Arşivi test et |
+| Her dosya ve klasöre sağ tık → **AFU Zip ile sıkıştır** | Arşive ekle…, 7z olarak sıkıştır, zip olarak sıkıştır |
+| "Birlikte aç" ve Ayarlar → Varsayılan uygulamalar | 23 arşiv uzantısı (zip tabanlı belgeler hariç) |
+
+- Sağ tık işleri ana pencereyi açmaz: küçük bir ilerleme penceresi çıkar, iş bitince **"Klasörü aç"** düğmeli bir bildirim
+  gösterip kapanır. Birden çok dosya seçip "7z olarak sıkıştır" denince tek arşiv oluşur.
+- Windows 11'de klasik menü öğeleri "Daha fazla seçenek göster" altındadır; yeni menüye girmek paket kimliği (MSIX) ister.
+- **Explorer'a sürükle:** listeden dosya veya klasörü masaüstüne/Explorer'a sürükleyin; bırakıldığı anda çıkarılır.
+- **Dışarıda düzenle:** çift tıklayıp varsayılan programda açtığınız dosyayı kaydedince "Arşivde güncelle" çubuğu çıkar.
+- **Görev çubuğu:** etkin işlerin ilerlemesi uygulama düğmesinde görünür (duraklatılınca sarı, hata olunca kırmızı).
+- Komut satırından da: `AfuZip.exe --extract-here|--extract-folder|--test|--add|--compress <preset> yol...`
+
 ## Arayüz (Faz 1)
 
 - **Sekmeler:** her arşiv ayrı sekmede; aynı arşiv ikinci kez açılırsa o sekmeye geçilir. Çoklu seçimle veya sürükleyerek birden fazla arşiv açılabilir.
@@ -154,7 +173,7 @@ Seçilen dosya diske yazılmadan açılır ve türü uzantıdan değil **içerik
 | `AfuZip.Preview.Web` | TypeScript + Vite: Monaco, Markdown (markdown-it + DOMPurify), JSON/XML ağacı, SVG; WebView2'de çalışır |
 | `AfuZip.Cli` | `afuzip` komutu: formats, sniff, list, x, t, a, d, rn |
 | `AfuZip.App` | WinUI 3 (Windows App SDK 2.6): sekmeler, önizleme paneli (WebView2, resim, medya, hex), görev kuyruğu, parola diyaloğu |
-| `AfuZip.Tests` | xUnit v3: 175 test (149'u her platformda, 26'sı yalnızca Windows'ta 7z.dll ile) |
+| `AfuZip.Tests` | xUnit v3: 188 test (162'si her platformda, 26'sı yalnızca Windows'ta 7z.dll ile) |
 
 ## Faz 1 çıkış kriteri
 
@@ -213,11 +232,11 @@ yapmak için kullanılmasını yasaklar. Kullanılan diğer paketler ve lisansla
 | 1 | Okuma: sekmeler, klasör ağacı, arama, iç içe arşivler, görev kuyruğu, parola | ✅ |
 | 2 | Önizleme v1: Monaco, Markdown, JSON/XML, PDF, medya, hex, solid blok önbelleği | ✅ |
 | 3 | Oluşturma ve düzenleme: presetler, tahmin, AES-256, ciltler, ekle/sil/yeniden adlandır | ✅ |
-| 4 | Windows entegrasyonu: MSIX, bağlam menüsü, dışarı sürükle, bildirimler | sırada |
-| 5 | Önizleme v2 ve eklentiler: font, 3D model, PE dosyaları, sistem önizleyicileri | |
+| 4 | Windows entegrasyonu: sağ tık menüsü, Birlikte aç, dışarı sürükle, dışarıda düzenle, bildirimler, görev çubuğu, taşınabilir paket | ✅ |
+| 5 | Önizleme v2 ve eklentiler: font, 3D model, PE dosyaları, sistem önizleyicileri | sırada |
 | 6 | Sertleştirme ve 1.0 yayını | |
 
-### Sıradaki adım: Faz 4 (Windows entegrasyonu)
+### Sıradaki adım: Faz 5 (Önizleme v2)
 
-MSIX paketleme, dosya ilişkilendirmeleri, Windows 11 bağlam menüsü (IExplorerCommand), dışarı sürükle (sanal dosyalar),
-bildirimler, görev çubuğu ilerlemesi, "dışarıda düzenle" (değişince arşive geri yaz).
+Yazı tipi, 3D model (glTF/OBJ/FBX), PE dosyası (sürüm bilgisi, imza, içe aktarılan DLL'ler) önizlemeleri ve Windows'un kendi
+önizleme işleyicileri (Office, Photoshop eklentileri). Sonra Faz 6'da MSIX paketi ve Windows 11'in yeni sağ tık menüsü.

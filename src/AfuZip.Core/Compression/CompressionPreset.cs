@@ -29,6 +29,20 @@ public sealed record CompressionPreset(
 
     public static IReadOnlyList<CompressionPreset> All { get; } = [Fast, Balanced, Maximum, Share, Developer];
 
+    /// <summary>
+    /// Diyalogsuz sıkıştırma (sağ tık) için: kimliği verilen preset, kurulu motorların yapabildiğine uyarlanır.
+    /// 7z.dll yoksa zip'e (yönetilen motor), Zstandard yoksa 7z'de LZMA2'ye, tar.zst'de Dengeli'ye düşer.
+    /// </summary>
+    public static CompressionPreset ForEngines(string? id, bool hasSevenZip, bool hasZstd)
+    {
+        var preset = All.FirstOrDefault(p => string.Equals(p.Id, id, StringComparison.OrdinalIgnoreCase)) ?? Balanced;
+        if (!hasSevenZip)
+            return preset.Format is ArchiveFormat.Zip ? preset : Share;
+        if (preset.Method == "ZSTD" && !hasZstd)
+            return preset.Format == ArchiveFormat.SevenZip ? preset with { Method = "LZMA2", Level = 3 } : Balanced;
+        return preset;
+    }
+
     /// <summary>Hedef dosya adından preset çıkarır: .zip → Paylaşım, .tar.gz → tar + gzip, .7z → Dengeli.</summary>
     public static CompressionPreset ForPath(string archivePath)
     {

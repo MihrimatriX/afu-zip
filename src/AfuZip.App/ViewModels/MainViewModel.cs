@@ -36,17 +36,21 @@ public sealed class MainViewModel : ObservableObject
         foreach (var item in recent.Load())
             Recent.Add(item);
 
-        queue.TaskAdded += (_, task) =>
+        queue.TaskAdded += OnTaskAdded;
+    }
+
+    private readonly List<ArchiveTask> _created = [];
+
+    private void OnTaskAdded(object? sender, ArchiveTask task)
+    {
+        Tasks.Insert(0, task);
+        task.PropertyChanged += (_, e) =>
         {
-            Tasks.Insert(0, task);
-            task.PropertyChanged += (_, e) =>
-            {
-                // İlerleme bildirimleri saniyede ~10 gelir; başlık yalnızca durum değişince güncellenir.
-                if (e.PropertyName == nameof(ArchiveTask.State))
-                    NotifyTasks();
-            };
-            NotifyTasks();
+            // İlerleme bildirimleri saniyede ~10 gelir; başlık yalnızca durum değişince güncellenir.
+            if (e.PropertyName == nameof(ArchiveTask.State))
+                NotifyTasks();
         };
+        NotifyTasks();
     }
 
     public ObservableCollection<ArchiveTabViewModel> Tabs { get; } = [];
@@ -60,6 +64,8 @@ public sealed class MainViewModel : ObservableObject
     }
 
     public string Status { get => _status; private set => SetProperty(ref _status, value); }
+
+    public void SetStatus(string status) => Status = status;
     public bool IsBusy { get => _isBusy; private set => SetProperty(ref _isBusy, value); }
 
     public bool HasTabs => Tabs.Count > 0;
@@ -134,7 +140,7 @@ public sealed class MainViewModel : ObservableObject
     {
         var ui = SynchronizationContext.Current;
         var name = Path.GetFileName(request.ArchivePath);
-        return _queue.Enqueue($"Oluşturuluyor: {name}", async (task, ct) =>
+        var created = _queue.Enqueue($"Oluşturuluyor: {name}", async (task, ct) =>
         {
             var needed = Capability.Write | (request.Password is null ? Capability.None : Capability.Encrypt);
             var engine = _router.Resolve(request.Preset.Format, needed);
@@ -153,14 +159,27 @@ public sealed class MainViewModel : ObservableObject
                 ui.Post(_ => _ = OpenAsync(first), null);
             return $"{name} oluşturuldu · {ByteSize.Format(size)} · {engine.Name}";
         });
+        _created.Add(created);
+        return created;
     }
 
     public async Task CloseAllAsync()
     {
-        _queue.CancelAll();
+        // Yalnızca bu pencerenin işleri durur; sağ tık menüsünden başlayan işler ilerleme penceresinde sürer.
+        _queue.TaskAdded -= OnTaskAdded;
+        foreach (var task in _created.Where(t => t.IsActive))
+            task.Cancel();
         // Pencere kapanırken çağrılır: sekme koleksiyonu temizlenmez, kapanan pencerenin
         // görsel ağacıyla uğraşmak yerine yalnızca okuyucular ve geçici dosyalar bırakılır.
         await Task.WhenAll(Tabs.ToList().Select(tab => tab.DisposeAsync().AsTask()));
+        try
+        {
+            // İptal edilen oluşturma yarım arşivini silsin diye kısa süre beklenir.
+            await Task.WhenAll(_created.Select(t => t.Completion)).WaitAsync(TimeSpan.FromSeconds(10));
+        }
+        catch (TimeoutException)
+        {
+        }
         _previewCache.Dispose(); // önizleme geçici klasörünü sil
     }
 

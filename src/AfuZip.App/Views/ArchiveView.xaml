@@ -34,6 +34,7 @@
 
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
@@ -100,8 +101,19 @@
         <ProgressBar Grid.Row="0" VerticalAlignment="Bottom" IsIndeterminate="True"
                      Visibility="{x:Bind ViewModel.IsBusy, Mode=OneWay}" />
 
+        <!-- Varsayılan uygulamada açılıp kaydedilen dosya: arşive geri yazılsın mı? -->
+        <InfoBar Grid.Row="1" Margin="0,0,0,8" Severity="Informational" IsClosable="True"
+                 IsOpen="{x:Bind ViewModel.HasPendingEdits, Mode=OneWay}"
+                 Title="Dosya dışarıda değiştirildi"
+                 Message="{x:Bind ViewModel.PendingEditsMessage, Mode=OneWay}"
+                 CloseButtonClick="OnDismissExternalEdits">
+            <InfoBar.ActionButton>
+                <Button Content="Arşivde güncelle" Click="OnApplyExternalEdits" />
+            </InfoBar.ActionButton>
+        </InfoBar>
+
         <!-- Üç panel: klasör ağacı · liste · önizleme -->
-        <Grid Grid.Row="1" ColumnSpacing="8">
+        <Grid Grid.Row="2" ColumnSpacing="8">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="240" />
                 <ColumnDefinition Width="*" />
@@ -175,6 +187,7 @@
                               SelectionChanged="OnSelectionChanged"
                               DoubleTapped="OnItemDoubleTapped"
                               KeyDown="OnListKeyDown"
+                              CanDragItems="True" DragItemsStarting="OnDragItemsStarting"
                               AllowDrop="True" DragOver="OnListDragOver" Drop="OnListDrop">
                         <ListView.ItemTemplate>
                             <DataTemplate x:DataType="vm:EntryItem">
@@ -214,7 +227,7 @@
                     Visibility="{x:Bind ViewModel.IsPreviewVisible, Mode=OneWay}" />
         </Grid>
 
-        <TextBlock Grid.Row="2" Margin="4,0" TextTrimming="CharacterEllipsis" Style="{StaticResource CaptionTextBlockStyle}"
+        <TextBlock Grid.Row="3" Margin="4,0" TextTrimming="CharacterEllipsis" Style="{StaticResource CaptionTextBlockStyle}"
                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                    Text="{x:Bind ViewModel.Status, Mode=OneWay}" />
     </Grid>

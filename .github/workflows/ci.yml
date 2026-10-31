@@ -66,6 +66,24 @@ jobs:
       - name: Uygulama (x64)
         run: dotnet build src/AfuZip.App -c Release -p:Platform=x64
 
+      # Uygulamanın kendisi, uçtan uca: sağ tık "arşiv adıyla klasöre çıkar" komutu ilerleme penceresiyle çalışır,
+      # iş bitince pencere kendiliğinden kapanır ve süreç sonlanır.
+      - name: Uygulama duman testi (sağ tık komutu)
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem src/AfuZip.App/bin/x64/Release -Recurse -Filter AfuZip.exe | Select-Object -First 1
+          New-Item -ItemType Directory -Force appsmoke/kaynak | Out-Null
+          Set-Content appsmoke/kaynak/not.txt "AFU Zip"
+          Push-Location appsmoke
+          & "C:\Program Files\7-Zip\7z.exe" a paket.7z kaynak | Out-Null
+          Pop-Location
+          $archive = Join-Path $PWD 'appsmoke\paket.7z'
+          $p = Start-Process -FilePath $exe.FullName -ArgumentList '--extract-folder', "`"$archive`"" -PassThru
+          if (-not $p.WaitForExit(120000)) { $p.Kill(); throw "Uygulama 2 dakikada kapanmadı" }
+          if (-not (Test-Path appsmoke/paket/kaynak/not.txt)) { throw "Çıkarılan dosya yok (çıkış kodu $($p.ExitCode))" }
+          Write-Host "Sağ tık komutu çalıştı, çıkış kodu $($p.ExitCode)"
+
       - name: Uygulama (ARM64)
         run: dotnet build src/AfuZip.App -c Release -p:Platform=ARM64
 
