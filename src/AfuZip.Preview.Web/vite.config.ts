@@ -14,5 +14,12 @@ export default defineConfig({
   },
   worker: {
     format: 'es',
+    rolldownOptions: {
+      output: {
+        // Windows App SDK'nin makepri'si dosya adındaki ara noktayı kaynak niteleyicisi sanıp uyarır
+        // (PRI249, "editor.worker-HASH.js"): worker adlarında nokta yerine tire kullanılır.
+        entryFileNames: (chunk) => `assets/${chunk.name.replaceAll('.', '-')}-[hash].js`,
+      },
+    },
   },
 });
