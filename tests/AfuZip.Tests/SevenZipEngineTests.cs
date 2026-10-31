@@ -67,7 +67,7 @@ public class SevenZipEngineTests
         Assert.Equal(ArchiveFormat.SevenZip, reader.Format);
         Assert.True(reader.IsSolid);
         var log = reader.Entries.Single(e => e.Name == "günlük.log");
-        Assert.Equal(120_000, log.Size);
+        Assert.Equal(new FileInfo(temp["kaynak/günlük.log"]).Length, log.Size); // "satır\n" UTF-8'de 7 bayt
         Assert.StartsWith("LZMA2", log.Method);
 
         await using (var preview = await reader.OpenEntryAsync(reader.Entries.Single(e => e.Name == "çiçek.txt").Index, Ct))
@@ -390,7 +390,8 @@ public class SevenZipEngineTests
             pending.Commit();
 
         await using var reader = await Engine.OpenAsync(archive, OpenOptions.Default, Ct);
-        var paths = reader.Entries.Where(e => !e.IsDirectory).Select(e => e.Path).Order().ToList();
+        // Ordinal: varsayılan karşılaştırıcı kültüre bağlı ve büyük/küçük harfi yok sayar ("kaynak" < "README").
+        var paths = reader.Entries.Where(e => !e.IsDirectory).Select(e => e.Path).Order(StringComparer.Ordinal).ToList();
         Assert.Equal(["proje/README.md", "proje/kaynak/Düşman.cs", "proje/kaynak/Oyuncu.cs"], paths);
         Assert.True((await reader.TestAsync(ct: Ct)).Success);
     }
