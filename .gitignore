@@ -1,0 +1,18 @@
+bin/
+obj/
+.vs/
+.vscode/
+*.user
+*.suo
+*.binlog
+TestResults/
+artifacts/
+*.msix
+*.appx
+AppPackages/
+BundleArtifacts/
+# 7-Zip ikilileri depoya girmez; README'deki adımla yerel olarak eklenir
+7z.dll
+# Önizleme web katmanı: bağımlılıklar ve Vite çıktısı derlemede üretilir
+node_modules/
+src/AfuZip.Preview.Web/dist/

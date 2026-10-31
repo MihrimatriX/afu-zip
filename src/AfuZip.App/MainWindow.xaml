@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="AfuZip.App.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:core="using:AfuZip.Core"
+    xmlns:services="using:AfuZip.App.Services"
+    Title="AFU Zip">
+
+    <Window.SystemBackdrop>
+        <MicaBackdrop />
+    </Window.SystemBackdrop>
+
+    <!-- Transparent arka plan: boş alanlara bırakılan dosyalar da isabet testinden geçsin -->
+    <Grid x:Name="Root" Background="Transparent" AllowDrop="True" DragOver="OnDragOver" Drop="OnDrop"
+          KeyboardAcceleratorPlacementMode="Hidden">
+        <Grid.KeyboardAccelerators>
+            <KeyboardAccelerator Modifiers="Control" Key="O" Invoked="OnOpenAccelerator" />
+            <KeyboardAccelerator Modifiers="Control" Key="W" Invoked="OnCloseTabAccelerator" />
+            <KeyboardAccelerator Modifiers="Control" Key="N" Invoked="OnCreateAccelerator" />
+        </Grid.KeyboardAccelerators>
+
+        <Grid.RowDefinitions>
+            <RowDefinition Height="40" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="28" />
+        </Grid.RowDefinitions>
+
+        <!-- Başlık çubuğu -->
+        <Grid x:Name="AppTitleBar" Padding="16,0,140,0">
+            <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                <FontIcon Glyph="&#xF012;" FontSize="14" />
+                <TextBlock Text="AFU Zip" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center" />
+            </StackPanel>
+        </Grid>
+
+        <!-- Sekmeler: içerikleri kodda oluşturulur (MainWindow.xaml.cs) -->
+        <TabView x:Name="Tabs" Grid.Row="1" Padding="8,0"
+                 Visibility="{x:Bind ViewModel.HasTabs, Mode=OneWay}"
+                 IsAddTabButtonVisible="True"
+                 TabWidthMode="SizeToContent"
+                 AddTabButtonClick="OnAddTabClick"
+                 TabCloseRequested="OnTabCloseRequested"
+                 SelectionChanged="OnTabSelectionChanged">
+            <TabView.TabStripFooter>
+                <Button Margin="4,0,8,0" VerticalAlignment="Center" Click="OnCreateClick"
+                        ToolTipService.ToolTip="Arşiv oluştur (Ctrl+N)">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE7B8;" FontSize="14" />
+                        <TextBlock Text="Oluştur" />
+                    </StackPanel>
+                </Button>
+            </TabView.TabStripFooter>
+        </TabView>
+
+        <!-- Karşılama: hiç sekme yokken -->
+        <Grid Grid.Row="1" Visibility="{x:Bind ViewModel.IsWelcomeVisible, Mode=OneWay}">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16" MaxWidth="560">
+                <FontIcon Glyph="&#xF012;" FontSize="56" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                <TextBlock Text="Arşiv aç ya da buraya sürükle" Style="{StaticResource SubtitleTextBlockStyle}" HorizontalAlignment="Center" />
+                <TextBlock HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" Style="{StaticResource CaptionTextBlockStyle}"
+                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                           Text="Arşiv olmayan dosya ve klasörleri sürüklerseniz yeni arşiv oluşturulur." />
+                <TextBlock HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           Text="7z, ZIP, RAR, TAR ve sıkıştırılmış türleri, ISO, CAB, WIM ve 7-Zip'in tanıdığı diğer formatlar." />
+                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                    <Button Style="{StaticResource AccentButtonStyle}" Click="OnOpenClick">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE8E5;" FontSize="16" />
+                            <TextBlock Text="Arşiv aç (Ctrl+O)" />
+                        </StackPanel>
+                    </Button>
+                    <Button Click="OnCreateClick">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE7B8;" FontSize="16" />
+                            <TextBlock Text="Arşiv oluştur (Ctrl+N)" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+
+                <StackPanel Spacing="4" Visibility="{x:Bind ViewModel.HasRecent, Mode=OneWay}">
+                    <TextBlock Text="Son açılanlar" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,16,0,0" />
+                    <ListView ItemsSource="{x:Bind ViewModel.Recent}" IsItemClickEnabled="True" SelectionMode="None"
+                              ItemClick="OnRecentClick" MaxHeight="320">
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="services:RecentItem">
+                                <StackPanel Padding="0,6">
+                                    <TextBlock Text="{x:Bind Name}" />
+                                    <TextBlock Text="{x:Bind Folder}" Style="{StaticResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </StackPanel>
+            </StackPanel>
+        </Grid>
+
+        <ProgressBar Grid.Row="1" VerticalAlignment="Top" IsIndeterminate="True"
+                     Visibility="{x:Bind ViewModel.IsBusy, Mode=OneWay}" />
+
+        <!-- Görev kuyruğu -->
+        <Expander Grid.Row="2" Margin="8,4,8,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                  IsExpanded="True" Visibility="{x:Bind ViewModel.HasTasks, Mode=OneWay}">
+            <Expander.Header>
+                <Grid>
+                    <TextBlock Text="{x:Bind ViewModel.TasksHeader, Mode=OneWay}" VerticalAlignment="Center" />
+                    <HyperlinkButton HorizontalAlignment="Right" Content="Bitenleri temizle" Click="OnClearTasks" />
+                </Grid>
+            </Expander.Header>
+            <ListView ItemsSource="{x:Bind ViewModel.Tasks}" SelectionMode="None" MaxHeight="220">
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="core:ArchiveTask">
+                        <Grid Padding="0,6" ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="{x:Bind Title}" TextTrimming="CharacterEllipsis" />
+                                <ProgressBar Value="{x:Bind Percent, Mode=OneWay}" Maximum="100"
+                                             IsIndeterminate="{x:Bind IsIndeterminate, Mode=OneWay}"
+                                             Visibility="{x:Bind IsActive, Mode=OneWay}" />
+                                <TextBlock Text="{x:Bind StatusText, Mode=OneWay}" TextWrapping="Wrap"
+                                           Style="{StaticResource CaptionTextBlockStyle}"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                <Button ToolTipService.ToolTip="Duraklat" Click="OnPauseTask" Tag="{x:Bind}"
+                                        Visibility="{x:Bind CanPause, Mode=OneWay}">
+                                    <FontIcon Glyph="&#xE769;" FontSize="12" />
+                                </Button>
+                                <Button ToolTipService.ToolTip="Devam et" Click="OnResumeTask" Tag="{x:Bind}"
+                                        Visibility="{x:Bind CanResume, Mode=OneWay}">
+                                    <FontIcon Glyph="&#xE768;" FontSize="12" />
+                                </Button>
+                                <Button ToolTipService.ToolTip="İptal" Click="OnCancelTask" Tag="{x:Bind}"
+                                        Visibility="{x:Bind IsActive, Mode=OneWay}">
+                                    <FontIcon Glyph="&#xE711;" FontSize="12" />
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+        </Expander>
+
+        <TextBlock Grid.Row="3" Margin="16,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                   Style="{StaticResource CaptionTextBlockStyle}"
+                   Text="{x:Bind ViewModel.Status, Mode=OneWay}" />
+    </Grid>
+</Window>

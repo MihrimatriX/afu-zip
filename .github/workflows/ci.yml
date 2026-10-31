@@ -1,0 +1,90 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  windows:
+    # windows-latest imajında 7-Zip kurulu: 7z.dll testleri (Faz 0 çıkış kriteri) burada gerçekten çalışır.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/AfuZip.Preview.Web/package-lock.json
+
+      - name: Testler (7-Zip motoru dahil)
+        run: dotnet test --project tests/AfuZip.Tests -c Release
+
+      - name: CLI duman testi
+        shell: pwsh
+        run: |
+          dotnet run --project src/AfuZip.Cli -c Release -- formats
+          New-Item -ItemType Directory -Force smoke/kaynak | Out-Null
+          Set-Content smoke/kaynak/çiçek.txt "Merhaba dünya"
+          & "C:\Program Files\7-Zip\7z.exe" a smoke/test.7z smoke/kaynak | Out-Null
+          dotnet run --project src/AfuZip.Cli -c Release -- list smoke/test.7z
+          dotnet run --project src/AfuZip.Cli -c Release -- t smoke/test.7z
+          if ($LASTEXITCODE -ne 0) { throw "7z test başarısız" }
+          dotnet run --project src/AfuZip.Cli -c Release -- x smoke/test.7z -o smoke/out
+          if ((Get-Content smoke/out/kaynak/çiçek.txt) -ne "Merhaba dünya") { throw "7z çıkarma sonucu hatalı" }
+          # Akıllı çıkarma: tek kök klasör ('kaynak') arşivin yanına çıkar
+          Remove-Item -Recurse -Force smoke/kaynak
+          dotnet run --project src/AfuZip.Cli -c Release -- x smoke/test.7z
+          if (-not (Test-Path smoke/kaynak/çiçek.txt)) { throw "akıllı çıkarma hatalı" }
+          # Faz 3: oluşturma, parola + başlık şifreleme, cilt bölme, düzenleme
+          dotnet run --project src/AfuZip.Cli -c Release -- a smoke/yeni.7z smoke/kaynak -m max -p Parola1 -he
+          if ($LASTEXITCODE -ne 0) { throw "7z oluşturma başarısız" }
+          dotnet run --project src/AfuZip.Cli -c Release -- t smoke/yeni.7z -p Parola1
+          if ($LASTEXITCODE -ne 0) { throw "şifreli 7z testi başarısız" }
+          dotnet run --project src/AfuZip.Cli -c Release -- a smoke/yedek.tar.gz smoke/kaynak
+          dotnet run --project src/AfuZip.Cli -c Release -- l smoke/yedek.tar.gz
+          dotnet run --project src/AfuZip.Cli -c Release -- rn smoke/test.7z kaynak/çiçek.txt gül.txt
+          dotnet run --project src/AfuZip.Cli -c Release -- d smoke/test.7z kaynak/gül.txt
+          dotnet run --project src/AfuZip.Cli -c Release -- l smoke/test.7z
+
+      # Uygulama derlemesi web katmanını (Monaco, Markdown...) npm ile üretip PreviewWeb klasörüne kopyalar.
+      - name: Uygulama (x64)
+        run: dotnet build src/AfuZip.App -c Release -p:Platform=x64
+
+      - name: Uygulama (ARM64)
+        run: dotnet build src/AfuZip.App -c Release -p:Platform=ARM64
+
+  linux:
+    # Yönetilen motor ve güvenlik testleri platformdan bağımsızdır.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet test --project tests/AfuZip.Tests -c Release
+
+  preview-web:
+    # Önizleme web katmanı: tip denetimi ve Vite derlemesi.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/AfuZip.Preview.Web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/AfuZip.Preview.Web/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build

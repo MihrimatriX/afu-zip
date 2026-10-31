@@ -1,0 +1,94 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.22621.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.22000.0</TargetPlatformMinVersion>
+    <RootNamespace>AfuZip.App</RootNamespace>
+    <AssemblyName>AfuZip</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <UseWinUI>true</UseWinUI>
+    <EnableMsixTooling>true</EnableMsixTooling>
+
+    <!-- Faz 0: paketlenmemiş (unpackaged) ve Windows App SDK uygulamayla birlikte gelir.
+         MSIX paketleme Faz 4'te; Windows 11 bağlam menüsü paket kimliği ister. -->
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+
+    <Platforms>x64;ARM64</Platforms>
+    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
+    <!-- "dotnet build" platform belirtmeden çağrılınca x64 kullan. -->
+    <Platform Condition="'$(Platform)' == '' Or '$(Platform)' == 'AnyCPU' Or '$(Platform)' == 'Any CPU'">x64</Platform>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' And '$(Platform)' == 'x64'">win-x64</RuntimeIdentifier>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' And '$(Platform)' == 'ARM64'">win-arm64</RuntimeIdentifier>
+
+    <!-- Tek örnek aktivasyonu için kendi Main metodumuzu yazıyoruz (Program.cs). -->
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" />
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+  </ItemGroup>
+
+  <!--
+    Önizleme web katmanı (Monaco, Markdown, JSON/XML ağacı): AfuZip.Preview.Web'in Vite çıktısı uygulamanın yanına
+    PreviewWeb klasörü olarak kopyalanır. dist yoksa derleme sırasında npm ile üretilir (Node.js 22+ gerekir);
+    hazır dist ile gelen kaynak paketinde Node gerekmez. Web katmanı yoksa uygulama düz metin önizlemesine düşer.
+  -->
+  <PropertyGroup>
+    <PreviewWebDir>$(MSBuildThisFileDirectory)..\AfuZip.Preview.Web\</PreviewWebDir>
+    <PreviewWebDist>$(PreviewWebDir)dist\</PreviewWebDist>
+  </PropertyGroup>
+
+  <!--
+    Inputs/Outputs: TypeScript/CSS değişince dist yeniden üretilir, değişmediyse npm hiç çalışmaz.
+    Visual Studio'nun tasarım zamanı derlemelerinde (çözüm açılırken) npm çalıştırılmaz.
+    Not: x64 ve ARM64 aynı anda paralel derlenirse iki npm aynı klasörde çalışır; CI'da sırayla derlenir.
+  -->
+  <ItemGroup>
+    <PreviewWebSource Include="$(PreviewWebDir)src\**\*;$(PreviewWebDir)index.html;$(PreviewWebDir)package.json;$(PreviewWebDir)package-lock.json;$(PreviewWebDir)vite.config.ts" />
+    <UpToDateCheckInput Include="@(PreviewWebSource)" />
+    <UpToDateCheckInput Include="$(PreviewWebDist)**\*" />
+  </ItemGroup>
+
+  <Target Name="BuildPreviewWeb" BeforeTargets="AssignTargetPaths"
+          Inputs="@(PreviewWebSource)" Outputs="$(PreviewWebDist)index.html"
+          Condition="'$(SkipPreviewWeb)' != 'true' And '$(DesignTimeBuild)' != 'true'">
+    <!-- Node yoksa: hazır dist varsa onunla devam (uyarı), yoksa açık bir hata. -->
+    <Exec Command="npm --version" WorkingDirectory="$(PreviewWebDir)" ContinueOnError="true" IgnoreExitCode="true"
+          StandardOutputImportance="low" StandardErrorImportance="low" EchoOff="true">
+      <Output TaskParameter="ExitCode" PropertyName="_NpmExitCode" />
+    </Exec>
+    <Warning Condition="'$(_NpmExitCode)' != '0' And Exists('$(PreviewWebDist)index.html')"
+             Text="npm bulunamadı; önizleme web katmanı yeniden derlenmedi, var olan dist kullanılıyor (Node.js 22+ kurun)." />
+    <Error Condition="'$(_NpmExitCode)' != '0' And !Exists('$(PreviewWebDist)index.html')"
+           Text="Önizleme web katmanı için Node.js 22+ gerekli (src/AfuZip.Preview.Web: npm ci ve npm run build). Atlamak için -p:SkipPreviewWeb=true." />
+    <Message Importance="high" Text="Önizleme web katmanı derleniyor (npm)…" Condition="'$(_NpmExitCode)' == '0'" />
+    <Exec Command="npm ci --no-audit --no-fund" WorkingDirectory="$(PreviewWebDir)"
+          Condition="'$(_NpmExitCode)' == '0' And !Exists('$(PreviewWebDir)node_modules\.package-lock.json')" />
+    <Exec Command="npm run build" WorkingDirectory="$(PreviewWebDir)" Condition="'$(_NpmExitCode)' == '0'" />
+  </Target>
+
+  <!--
+    Hedef içinde %(RecursiveDir) gibi niteliksiz meta veriler eklenen dosyaya değil var olan None öğelerine
+    göre toplu işlenir (her dosya PreviewWeb\app.manifest'e kopyalanırdı); bu yüzden ara öğe listesi kullanılır.
+  -->
+  <Target Name="IncludePreviewWeb" AfterTargets="BuildPreviewWeb" BeforeTargets="AssignTargetPaths">
+    <ItemGroup>
+      <_PreviewWebFile Include="$(PreviewWebDist)**\*" />
+      <Content Include="@(_PreviewWebFile)"
+               Link="PreviewWeb\%(_PreviewWebFile.RecursiveDir)%(_PreviewWebFile.Filename)%(_PreviewWebFile.Extension)"
+               CopyToOutputDirectory="PreserveNewest" />
+    </ItemGroup>
+  </Target>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AfuZip.Core\AfuZip.Core.csproj" />
+    <ProjectReference Include="..\AfuZip.Engine.Managed\AfuZip.Engine.Managed.csproj" />
+    <ProjectReference Include="..\AfuZip.Engine.SevenZip\AfuZip.Engine.SevenZip.csproj" />
+  </ItemGroup>
+
+</Project>

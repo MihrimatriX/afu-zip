@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="AFU Zip">
+  <!-- Kutu arşivdir; pirinç fermuar aşağıdan açılmış, içi görünüyor. -->
+  <defs>
+    <clipPath id="box"><rect x="4" y="4" width="88" height="88" rx="22"/></clipPath>
+  </defs>
+  <rect x="4" y="4" width="88" height="88" rx="22" fill="#2457E6"/>
+  <g clip-path="url(#box)">
+    <!-- açılan kısım: içerik -->
+    <path d="M48 46 L18 100 H78 Z" fill="#F4F7FF"/>
+    <!-- açılan kenarlardaki dişler -->
+    <path d="M45.5 50 L17 101" stroke="#E2AE4A" stroke-width="7" stroke-dasharray="5 3"/>
+    <path d="M50.5 50 L79 101" stroke="#E2AE4A" stroke-width="7" stroke-dasharray="5 3" stroke-dashoffset="4"/>
+  </g>
+  <!-- kapalı kısım: dişler birbirine geçmiş -->
+  <g fill="#E2AE4A">
+    <rect x="37" y="10" width="12" height="5" rx="1.5"/>
+    <rect x="47" y="16" width="12" height="5" rx="1.5"/>
+    <rect x="37" y="22" width="12" height="5" rx="1.5"/>
+    <rect x="47" y="28" width="12" height="5" rx="1.5"/>
+  </g>
+  <!-- sürgü ve çekme ucu -->
+  <path d="M35 34 H61 L56 50 H40 Z" fill="#F6D58C" stroke="#B07F1E" stroke-width="2" stroke-linejoin="round"/>
+  <rect x="42" y="48" width="12" height="26" rx="6" fill="#E2AE4A" stroke="#B07F1E" stroke-width="2"/>
+  <rect x="45.5" y="55" width="5" height="13" rx="2.5" fill="#2457E6"/>
+</svg>

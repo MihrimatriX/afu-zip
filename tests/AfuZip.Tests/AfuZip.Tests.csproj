@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <RootNamespace>AfuZip.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <Using Include="AfuZip.Core" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\AfuZip.Core\AfuZip.Core.csproj" />
+    <ProjectReference Include="..\..\src\AfuZip.Engine.Managed\AfuZip.Engine.Managed.csproj" />
+    <ProjectReference Include="..\..\src\AfuZip.Engine.SevenZip\AfuZip.Engine.SevenZip.csproj" />
+  </ItemGroup>
+
+</Project>

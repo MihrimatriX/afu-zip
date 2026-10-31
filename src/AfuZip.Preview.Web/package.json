@@ -1,0 +1,23 @@
+{
+  "name": "afuzip-preview-web",
+  "private": true,
+  "version": "0.3.0",
+  "description": "AFU Zip önizleme katmanı: WebView2 içinde Monaco, Markdown, JSON/XML ağacı, SVG",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "dompurify": "3.4.16",
+    "markdown-it": "14.3.2",
+    "monaco-editor": "0.57.0"
+  },
+  "devDependencies": {
+    "@types/markdown-it": "14.2.0",
+    "typescript": "6.0.3",
+    "vite": "8.3.4"
+  }
+}

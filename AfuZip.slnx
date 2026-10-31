@@ -1,0 +1,18 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/AfuZip.Core/AfuZip.Core.csproj" />
+    <Project Path="src/AfuZip.Engine.Managed/AfuZip.Engine.Managed.csproj" />
+    <Project Path="src/AfuZip.Engine.SevenZip/AfuZip.Engine.SevenZip.csproj" />
+    <Project Path="src/AfuZip.Cli/AfuZip.Cli.csproj" />
+    <Project Path="src/AfuZip.App/AfuZip.App.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/AfuZip.Tests/AfuZip.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="global.json" />
+    <File Path="README.md" />
+  </Folder>
+</Solution>
