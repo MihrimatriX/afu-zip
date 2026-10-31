@@ -35,7 +35,10 @@ jobs:
           dotnet run --project src/AfuZip.Cli -c Release -- formats
           New-Item -ItemType Directory -Force smoke/kaynak | Out-Null
           Set-Content smoke/kaynak/çiçek.txt "Merhaba dünya"
-          & "C:\Program Files\7-Zip\7z.exe" a smoke/test.7z smoke/kaynak | Out-Null
+          # 7z.exe göreli yolu olduğu gibi saklar; arşivin kökü 'kaynak' olsun diye klasörün içinden çalıştırılır.
+          Push-Location smoke
+          & "C:\Program Files\7-Zip\7z.exe" a test.7z kaynak | Out-Null
+          Pop-Location
           dotnet run --project src/AfuZip.Cli -c Release -- list smoke/test.7z
           dotnet run --project src/AfuZip.Cli -c Release -- t smoke/test.7z
           if ($LASTEXITCODE -ne 0) { throw "7z test başarısız" }
@@ -51,9 +54,12 @@ jobs:
           dotnet run --project src/AfuZip.Cli -c Release -- t smoke/yeni.7z -p Parola1
           if ($LASTEXITCODE -ne 0) { throw "şifreli 7z testi başarısız" }
           dotnet run --project src/AfuZip.Cli -c Release -- a smoke/yedek.tar.gz smoke/kaynak
+          if ($LASTEXITCODE -ne 0) { throw "tar.gz oluşturma başarısız" }
           dotnet run --project src/AfuZip.Cli -c Release -- l smoke/yedek.tar.gz
           dotnet run --project src/AfuZip.Cli -c Release -- rn smoke/test.7z kaynak/çiçek.txt gül.txt
+          if ($LASTEXITCODE -ne 0) { throw "yeniden adlandırma başarısız" }
           dotnet run --project src/AfuZip.Cli -c Release -- d smoke/test.7z kaynak/gül.txt
+          if ($LASTEXITCODE -ne 0) { throw "silme başarısız" }
           dotnet run --project src/AfuZip.Cli -c Release -- l smoke/test.7z
 
       # Uygulama derlemesi web katmanını (Monaco, Markdown...) npm ile üretip PreviewWeb klasörüne kopyalar.
