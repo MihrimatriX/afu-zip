@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>AfuZip.Engine.SevenZip</RootNamespace>
+    <!-- Kod her platformda derlenir; 7z.dll yalnızca Windows'ta yüklenir (IsAvailable). -->
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AfuZip.Core\AfuZip.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="AfuZip.Tests" />
+  </ItemGroup>
+
+</Project>

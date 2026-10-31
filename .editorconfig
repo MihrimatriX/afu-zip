@@ -1,0 +1,25 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = crlf
+insert_final_newline = true
+indent_style = space
+indent_size = 4
+trim_trailing_whitespace = true
+
+[*.{csproj,props,targets,xml,xaml,slnx,manifest,json,yml,yaml}]
+indent_size = 2
+
+[*.{ts,css,html}]
+indent_size = 2
+end_of_line = lf
+
+[*.cs]
+csharp_style_namespace_declarations = file_scoped:warning
+csharp_style_var_for_built_in_types = true:suggestion
+csharp_style_var_when_type_is_apparent = true:suggestion
+dotnet_style_readonly_field = true:suggestion
+dotnet_sort_system_directives_first = true
+# Bilinçli: arşiv motorları native sınırda her istisnayı HRESULT'a çevirir
+dotnet_diagnostic.CA1031.severity = none

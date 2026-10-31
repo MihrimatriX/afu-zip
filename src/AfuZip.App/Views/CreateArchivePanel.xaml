@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="AfuZip.App.Views.CreateArchivePanel"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:AfuZip.App.ViewModels">
+
+    <ScrollViewer MaxHeight="640" Padding="0,0,16,0" VerticalScrollBarVisibility="Auto">
+        <StackPanel x:Name="Root" Spacing="18" Width="680">
+
+            <!-- Kaynaklar -->
+            <StackPanel Spacing="6">
+                <TextBlock Text="Sıkıştırılacaklar" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                <ListView x:Name="SourceList" ItemsSource="{x:Bind ViewModel.Sources}" MaxHeight="120" SelectionMode="Extended"
+                          BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="4">
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="x:String">
+                            <TextBlock Text="{x:Bind}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind}" />
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Content="Dosya ekle…" Click="OnAddFiles" />
+                    <Button Content="Klasör ekle…" Click="OnAddFolder" />
+                    <Button Content="Kaldır" Click="OnRemoveSources" />
+                </StackPanel>
+            </StackPanel>
+
+            <!-- Hedef -->
+            <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBox Header="Arşiv" Text="{x:Bind ViewModel.TargetPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                <Button Grid.Column="1" Content="Gözat…" VerticalAlignment="Bottom" Click="OnBrowseTarget" />
+            </Grid>
+
+            <!-- Amaç (preset) -->
+            <StackPanel Spacing="6">
+                <TextBlock Text="Amaç" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                <GridView ItemsSource="{x:Bind ViewModel.Presets}" SelectionMode="Single"
+                          SelectedIndex="{x:Bind ViewModel.SelectedPresetIndex, Mode=TwoWay}">
+                    <GridView.ItemTemplate>
+                        <DataTemplate x:DataType="vm:PresetOption">
+                            <StackPanel Width="204" Height="84" Padding="12,8" Spacing="2" Opacity="{x:Bind Opacity}">
+                                <TextBlock Text="{x:Bind Name}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                <TextBlock Text="{x:Bind Description}" Style="{StaticResource CaptionTextBlockStyle}" TextWrapping="Wrap"
+                                           MaxLines="2" />
+                                <TextBlock Text="{x:Bind Detail}" Style="{StaticResource CaptionTextBlockStyle}"
+                                           Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </GridView.ItemTemplate>
+                </GridView>
+                <TextBlock Text="{x:Bind ViewModel.EstimateText, Mode=OneWay}" TextWrapping="Wrap"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+
+            <!-- Gelişmiş -->
+            <Expander Header="Gelişmiş ayarlar" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                <Grid ColumnSpacing="16" RowSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <ComboBox Header="Biçim" HorizontalAlignment="Stretch" ItemsSource="{x:Bind ViewModel.Formats}"
+                              SelectedIndex="{x:Bind ViewModel.SelectedFormatIndex, Mode=TwoWay}" />
+                    <ComboBox Grid.Column="1" Header="Yöntem" HorizontalAlignment="Stretch" ItemsSource="{x:Bind ViewModel.Methods}"
+                              SelectedIndex="{x:Bind ViewModel.MethodIndex, Mode=TwoWay}" />
+
+                    <Slider Grid.Row="1" Header="Seviye" Minimum="0" Maximum="{x:Bind ViewModel.MaxLevel, Mode=OneWay}"
+                            StepFrequency="1" TickFrequency="1" SnapsTo="Ticks" TickPlacement="BottomRight"
+                            Value="{x:Bind ViewModel.Level, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.HasLevels, Mode=OneWay}" />
+                    <ToggleSwitch Grid.Row="1" Grid.Column="1" Header="Solid (çok küçük dosyada daha iyi oran)"
+                                  IsOn="{x:Bind ViewModel.Solid, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.CanSolid, Mode=OneWay}" />
+
+                    <NumberBox Grid.Row="2" Header="İş parçacığı" PlaceholderText="Otomatik" Minimum="1" Maximum="128"
+                               SpinButtonPlacementMode="Compact" Value="{x:Bind ViewModel.Threads, Mode=TwoWay}" />
+                    <ComboBox Grid.Row="2" Grid.Column="1" Header="Ciltlere böl" HorizontalAlignment="Stretch"
+                              ItemsSource="{x:Bind ViewModel.VolumeChoices}" SelectedIndex="{x:Bind ViewModel.VolumeIndex, Mode=TwoWay}" />
+
+                    <NumberBox Grid.Row="3" Grid.Column="1" Header="Cilt boyutu (MB)" Minimum="1" SpinButtonPlacementMode="Compact"
+                               Value="{x:Bind ViewModel.CustomVolumeMb, Mode=TwoWay}"
+                               Visibility="{x:Bind ViewModel.IsCustomVolume, Mode=OneWay}" />
+                </Grid>
+            </Expander>
+
+            <!-- Şifreleme -->
+            <Expander Header="Parola ile şifrele (AES-256)" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                      IsEnabled="{x:Bind ViewModel.CanEncrypt, Mode=OneWay}">
+                <StackPanel Spacing="10">
+                    <PasswordBox Header="Parola" Password="{x:Bind ViewModel.Password, Mode=TwoWay}" />
+                    <PasswordBox Header="Parola (tekrar)" Password="{x:Bind ViewModel.ConfirmPassword, Mode=TwoWay}" />
+                    <CheckBox Content="Dosya adlarını da şifrele (parolasız liste bile görülemez)"
+                              IsChecked="{x:Bind ViewModel.EncryptHeaders, Mode=TwoWay}"
+                              IsEnabled="{x:Bind ViewModel.CanEncryptHeaders, Mode=OneWay}" />
+                    <TextBlock Style="{StaticResource CaptionTextBlockStyle}" TextWrapping="Wrap"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               Text="Parola unutulursa arşiv açılamaz; AFU Zip parolayı hiçbir yere kaydetmez." />
+                </StackPanel>
+            </Expander>
+
+            <CheckBox Content="Bitince arşivi aç" IsChecked="{x:Bind ViewModel.OpenWhenDone, Mode=TwoWay}" />
+
+            <InfoBar IsOpen="{x:Bind ViewModel.HasNotice, Mode=OneWay}" IsClosable="False" Severity="Informational"
+                     Message="{x:Bind ViewModel.Notice, Mode=OneWay}" />
+            <InfoBar IsOpen="{x:Bind ViewModel.HasValidationMessage, Mode=OneWay}" IsClosable="False" Severity="Warning"
+                     Message="{x:Bind ViewModel.ValidationMessage, Mode=OneWay}" />
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
