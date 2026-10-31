@@ -51,6 +51,13 @@ public sealed class ArchiveTree
 
     public ArchiveTree(IReadOnlyList<ArchiveEntry> entries, CultureInfo? culture = null)
     {
+        // Solid 7z: bir bloğun sıkışık boyutu bloğun ilk dosyasında toplu durur, dosya başına değildir; o dosyada
+        // "%8284" gibi oranlar çıkmasın diye birden fazla dosyalı bloklarda sıkışık boyut bilinmiyor sayılır.
+        var sharedBlocks = entries.Where(e => !e.IsDirectory && e.Block is not null)
+            .GroupBy(e => e.Block!.Value).Where(g => g.Count() > 1).Select(g => g.Key).ToHashSet();
+        if (sharedBlocks.Count > 0)
+            entries = [.. entries.Select(e => e.Block is { } b && sharedBlocks.Contains(b) ? e with { PackedSize = null } : e)];
+
         _entries = entries;
         _culture = culture ?? CultureInfo.CurrentCulture;
         _nameOrder = StringComparer.Create(_culture, CompareOptions.IgnoreCase | CompareOptions.NumericOrdering);

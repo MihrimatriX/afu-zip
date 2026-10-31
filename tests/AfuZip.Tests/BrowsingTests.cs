@@ -35,14 +35,18 @@ public class ArchiveTreeTests
         // Solid 7z: bloğun sıkışık boyutu yalnızca ilk dosyada; klasör toplamı "%8284" gibi anlamsız oranlar üretiyordu.
         var tree = new ArchiveTree(
         [
-            new ArchiveEntry(0, "assets/logo.svg", false, 1400, 112_000),
-            new ArchiveEntry(1, "assets/ikon.png", false, 900, null),
-            new ArchiveEntry(2, "README.md", false, 257, null),
+            new ArchiveEntry(0, "assets/logo.svg", false, 1400, 112_000, Block: 0),
+            new ArchiveEntry(1, "kapak.png", false, 120_000, null, Block: 0),
+            new ArchiveEntry(2, "README.md", false, 257, null, Block: 0),
+            new ArchiveEntry(3, "tek.bin", false, 5000, 4000, Block: 1),
         ], Turkish);
         var assets = tree.Children("").Single(i => i.IsFolder);
         Assert.Null(assets.PackedSize);
         Assert.Null(assets.Ratio);
-        Assert.Equal(2300, assets.Size);
+        Assert.Equal(1400, assets.Size);
+        Assert.Null(tree.Children("assets").Single().PackedSize);
+        // Tek dosyalı blokta boyut dosyanın kendisidir ve gösterilir.
+        Assert.Equal(4000, tree.Children("").Single(i => i.Name == "tek.bin").PackedSize);
     }
 
     [Fact]
