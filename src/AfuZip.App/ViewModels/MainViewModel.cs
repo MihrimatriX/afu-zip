@@ -103,13 +103,17 @@ public sealed class MainViewModel : ObservableObject
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            Status = $"Açılamadı: {ex.Message}";
+            AppLog.Error($"Arşiv açılamadı: {path}", ex);
+            Status = $"Açılamadı: {AppLog.Describe(ex)}";
         }
         finally
         {
             IsBusy = false;
         }
 
+        // Sekme arayüzü oluşturulurken hata olduysa koleksiyonda yarım bir sekme kalmasın.
+        if (Tabs.Remove(tab))
+            NotifyTabs();
         await tab.DisposeAsync();
         return null;
     }
