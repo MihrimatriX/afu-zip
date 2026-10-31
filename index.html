@@ -1,0 +1,742 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AFU Zip: Windows için arşiv yöneticisi</title>
+  <meta name="description" content="AFU Zip, Windows için 7-Zip motorlu bir arşiv yöneticisi. Kodu, Markdown'ı, JSON'u, PDF'i ve videoyu arşivden çıkarmadan önizler; sıkıştırırken codec değil amaç sorar.">
+  <meta name="theme-color" content="#2457E6">
+  <meta property="og:title" content="AFU Zip">
+  <meta property="og:description" content="Arşivi açmadan içine bak. Windows için 7-Zip motorlu, önizleyicili arşiv yöneticisi.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://mihrimatrix.github.io/afu-zip/">
+  <meta property="og:image" content="https://mihrimatrix.github.io/afu-zip/assets/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #F6F8FB;
+      --surface: #FFFFFF;
+      --ink: #18212B;
+      --muted: #566474;
+      --line: #DCE3EC;
+      --blue: #2457E6;
+      --blue-ink: #1B45BD;
+      --brass: #C8922A;
+      --brass-soft: #F6D58C;
+      --brass-text: #8A5F10;
+      --on-blue: #FFFFFF;
+      --code-key: #9A3412;
+      --code-str: #A31515;
+      --code-num: #0B7A55;
+      --code-kw: #1F4FD1;
+      --code-com: #3E7A3E;
+      --code-type: #267F99;
+      --display: "Bricolage Grotesque", "Segoe UI Variable Display", "Segoe UI", sans-serif;
+      --mono: "JetBrains Mono", "Cascadia Mono", Consolas, monospace;
+    }
+
+    code, pre { font-variant-ligatures: none; }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        color-scheme: dark;
+        --paper: #121A23;
+        --surface: #1B2531;
+        --ink: #E8EEF5;
+        --muted: #9AA9B9;
+        --line: #2C3947;
+        --blue: #7FA2FF;
+        --blue-ink: #A9C0FF;
+        --brass: #E2AE4A;
+        --brass-text: #E2AE4A;
+        --on-blue: #0F1620;
+        --code-key: #F0A36C;
+        --code-str: #E8A07C;
+        --code-num: #9AD3A8;
+        --code-kw: #8EB2FF;
+        --code-com: #7FB27F;
+        --code-type: #6CC8D8;
+      }
+    }
+
+    * { box-sizing: border-box; }
+
+    @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--display);
+      font-optical-sizing: auto;
+      font-size: 1.0625rem;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a { color: var(--blue); text-underline-offset: 0.18em; }
+    a:hover { color: var(--blue-ink); }
+    :focus-visible { outline: 3px solid var(--brass); outline-offset: 3px; border-radius: 4px; }
+
+    .wrap { width: min(1120px, 100% - 32px); margin-inline: auto; }
+
+    /* --- Üst çubuk ----------------------------------------------------------------------------- */
+
+    .top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-block: 20px;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--ink);
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 1.25rem;
+      letter-spacing: -0.01em;
+    }
+
+    .brand img { width: 36px; height: 36px; }
+
+    .top nav { display: flex; gap: 22px; font-size: 0.95rem; }
+    .top nav a { color: var(--muted); text-decoration: none; }
+    .top nav a:hover { color: var(--ink); }
+
+    /* --- Giriş --------------------------------------------------------------------------------- */
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+      gap: 48px;
+      align-items: center;
+      padding-block: 40px 72px;
+    }
+
+    h1 {
+      font-size: clamp(2.6rem, 6.2vw, 4.9rem);
+      font-weight: 750;
+      font-stretch: 78%;
+      line-height: 0.98;
+      letter-spacing: -0.025em;
+      margin: 0 0 24px;
+      text-wrap: balance;
+    }
+
+    .lede {
+      font-size: 1.2rem;
+      line-height: 1.55;
+      color: var(--muted);
+      max-width: 34ch;
+      margin: 0 0 32px;
+    }
+
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 28px; }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-weight: 600;
+      text-decoration: none;
+      border: 1.5px solid var(--blue);
+    }
+
+    .button.primary { background: var(--blue); color: var(--on-blue); }
+    .button.primary:hover { background: var(--blue-ink); border-color: var(--blue-ink); color: var(--on-blue); }
+    .button.secondary { color: var(--blue); }
+    .button svg { width: 20px; height: 20px; flex: none; }
+
+    .status {
+      display: flex;
+      gap: 10px;
+      align-items: baseline;
+      font-size: 0.95rem;
+      color: var(--muted);
+      max-width: 44ch;
+      margin: 0;
+    }
+
+    .status::before {
+      content: "";
+      flex: none;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--brass);
+      transform: translateY(-1px);
+    }
+
+    /* --- Canlı örnek: arşiv penceresi ------------------------------------------------------------ */
+
+    .window {
+      position: relative;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: 0 30px 60px -30px rgba(24, 33, 43, 0.35);
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      min-height: 420px;
+    }
+
+    .titlebar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--line);
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .titlebar img { width: 18px; height: 18px; }
+    .titlebar strong { color: var(--ink); font-weight: 600; }
+
+    .panes { display: grid; grid-template-columns: 184px minmax(0, 1fr); min-height: 0; }
+
+    .entries {
+      list-style: none;
+      margin: 0;
+      padding: 8px;
+      border-right: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .entries button {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: baseline;
+      padding: 8px 10px;
+      border: 0;
+      border-radius: 8px;
+      background: none;
+      color: var(--ink);
+      font: inherit;
+      font-size: 0.9rem;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .entries button:hover { background: color-mix(in srgb, var(--blue) 8%, transparent); }
+    .entries button[aria-selected="true"] { background: color-mix(in srgb, var(--blue) 15%, transparent); font-weight: 600; }
+    .entries .size { font-size: 0.78rem; color: var(--muted); font-weight: 400; }
+    .entries .path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .preview { display: grid; grid-template-rows: auto 1fr; min-width: 0; }
+
+    .preview header {
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--line);
+      font-size: 0.85rem;
+    }
+
+    .preview header strong { display: block; font-size: 0.95rem; }
+    .preview header span { color: var(--muted); }
+
+    .pane { padding: 14px 16px; overflow: auto; max-height: 360px; font-size: 0.86rem; }
+    .pane[hidden] { display: none; }
+
+    .code { font-family: var(--mono); font-size: 0.78rem; line-height: 1.65; white-space: pre; margin: 0; counter-reset: line; }
+    .code .ln { display: inline-block; width: 2.2em; color: var(--muted); opacity: 0.6; user-select: none; }
+    .kw { color: var(--code-kw); }
+    .ty { color: var(--code-type); }
+    .st { color: var(--code-str); }
+    .nu { color: var(--code-num); }
+    .co { color: var(--code-com); font-style: italic; }
+    .ke { color: var(--code-key); }
+
+    .md h3 { font-size: 1.35rem; margin: 0 0 6px; letter-spacing: -0.01em; }
+    .md p { margin: 0 0 10px; }
+    .md table { border-collapse: collapse; margin-top: 6px; font-size: 0.82rem; }
+    .md th, .md td { border: 1px solid var(--line); padding: 4px 10px; text-align: left; }
+    .md code { font-family: var(--mono); font-size: 0.78rem; padding: 1px 5px; border-radius: 4px; background: color-mix(in srgb, var(--ink) 7%, transparent); }
+
+    .tree { font-family: var(--mono); font-size: 0.8rem; line-height: 1.8; margin: 0; padding: 0; list-style: none; }
+    .tree ul { list-style: none; margin: 0; padding-left: 18px; border-left: 1px dashed var(--line); margin-left: 4px; }
+    .tree .badge { font-size: 0.7rem; color: var(--muted); border: 1px solid var(--line); border-radius: 8px; padding: 0 6px; margin-left: 6px; }
+
+    .svgpane {
+      display: grid;
+      place-items: center;
+      min-height: 280px;
+      background-color: #fff;
+      background-image: linear-gradient(45deg, #e9edf2 25%, transparent 25%), linear-gradient(-45deg, #e9edf2 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #e9edf2 75%), linear-gradient(-45deg, transparent 75%, #e9edf2 75%);
+      background-size: 16px 16px;
+      background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+      border-radius: 8px;
+    }
+
+    .hex { font-family: var(--mono); font-size: 0.76rem; line-height: 1.7; margin: 0; white-space: pre; }
+    .hex .off { color: var(--muted); }
+    .hex .asc { color: var(--brass-text); }
+
+    /* Fermuar: sayfanın tek hareketi. Pencere açılırken fermuar aşağı iner. */
+    .zipper {
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 100%;
+      pointer-events: none;
+      display: none;
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+      .zipper { display: block; }
+      .zipper .cover { animation: unzip 1.3s ease-in-out 0.3s both; }
+      .zipper .slider { animation: slide 1.3s ease-in-out 0.3s both; }
+    }
+
+    .zipper .cover { position: absolute; inset: 0; background: var(--surface); }
+    .zipper .cover::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 0;
+      bottom: 0;
+      width: 14px;
+      transform: translateX(-50%);
+      background: repeating-linear-gradient(to bottom, var(--brass) 0 5px, transparent 5px 9px);
+    }
+
+    .zipper .slider {
+      position: absolute;
+      left: 50%;
+      top: -6px;
+      width: 26px;
+      height: 44px;
+      transform: translateX(-50%);
+      border-radius: 6px 6px 13px 13px;
+      background: var(--brass-soft);
+      box-shadow: inset 0 -12px 0 var(--brass);
+    }
+
+    /* Sürgü aşağı indikçe üstte V biçiminde bir açıklık büyür; sonra kalan iki kanat da aşağı çekilir. */
+    @keyframes unzip {
+      0% { clip-path: polygon(0 0, 50% 0, 100% 0, 100% 100%, 0 100%); }
+      75% { clip-path: polygon(0 0, 50% 100%, 100% 0, 100% 100%, 0 100%); }
+      100% { clip-path: polygon(0 100%, 50% 100%, 100% 100%, 100% 100%, 0 100%); }
+    }
+    @keyframes slide {
+      0% { top: -30px; opacity: 1; }
+      75% { top: calc(100% - 30px); opacity: 1; }
+      100% { top: calc(100% + 20px); opacity: 0; }
+    }
+
+    /* --- Bölümler ------------------------------------------------------------------------------ */
+
+    section { padding-block: 64px; border-top: 1px solid var(--line); }
+
+    h2 {
+      font-size: clamp(1.8rem, 3.4vw, 2.6rem);
+      font-weight: 720;
+      font-stretch: 85%;
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+      margin: 0 0 12px;
+    }
+
+    .intro { color: var(--muted); max-width: 60ch; margin: 0 0 36px; font-size: 1.1rem; }
+
+    .features { display: grid; gap: 0; margin: 0; }
+
+    .feature {
+      display: grid;
+      grid-template-columns: minmax(0, 0.38fr) minmax(0, 0.62fr);
+      gap: 32px;
+      padding-block: 22px;
+      border-top: 1px solid var(--line);
+    }
+
+    .feature:first-child { border-top: 0; padding-top: 0; }
+    .feature dt { font-weight: 680; font-size: 1.2rem; letter-spacing: -0.01em; }
+    .feature dd { margin: 0; color: var(--muted); max-width: 64ch; }
+    .feature dd strong { color: var(--ink); font-weight: 600; }
+
+    .presets { width: 100%; border-collapse: collapse; font-size: 1rem; }
+    .presets th { text-align: left; font-weight: 600; color: var(--muted); font-size: 0.9rem; padding: 0 16px 10px 0; }
+    .presets td { padding: 16px 16px 16px 0; border-top: 1px solid var(--line); vertical-align: top; }
+    .presets td:first-child { font-weight: 680; font-size: 1.1rem; white-space: nowrap; }
+    .presets td.fmt { white-space: nowrap; color: var(--muted); }
+
+    .steps { margin: 0; padding: 0; list-style: none; counter-reset: step; display: grid; gap: 22px; max-width: 760px; }
+    .steps li { counter-increment: step; display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 12px; }
+    .steps li::before {
+      content: counter(step);
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 1.5px solid var(--brass);
+      color: var(--brass-text);
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+    }
+    .steps h3 { margin: 4px 0 6px; font-size: 1.1rem; }
+    .steps p { margin: 0 0 8px; color: var(--muted); }
+
+    pre.shell {
+      margin: 8px 0 0;
+      padding: 14px 16px;
+      border-radius: 10px;
+      background: #18212B;
+      color: #E8EEF5;
+      font-family: var(--mono);
+      font-size: 0.85rem;
+      line-height: 1.6;
+      overflow-x: auto;
+    }
+
+    pre.shell .co { color: #8FA3B8; font-style: normal; }
+
+    .roadmap { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; max-width: 820px; }
+    .roadmap li {
+      display: grid;
+      grid-template-columns: 56px minmax(0, 1fr);
+      gap: 16px;
+      padding: 14px 0;
+      border-top: 1px solid var(--line);
+    }
+    .roadmap .phase { font-weight: 700; font-size: 1.05rem; color: var(--muted); }
+    .roadmap .done .phase { color: var(--brass-text); }
+    .roadmap h3 { margin: 0; font-size: 1.05rem; }
+    .roadmap p { margin: 2px 0 0; color: var(--muted); font-size: 0.97rem; }
+    .roadmap .next h3::after {
+      content: "sırada";
+      margin-left: 10px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--blue);
+      border: 1px solid var(--blue);
+      border-radius: 999px;
+      padding: 1px 8px;
+      vertical-align: 2px;
+    }
+
+    footer { padding-block: 40px 56px; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.95rem; }
+    footer p { margin: 0 0 8px; max-width: 80ch; }
+
+    /* --- Dar ekran ----------------------------------------------------------------------------- */
+
+    @media (max-width: 900px) {
+      .hero { grid-template-columns: 1fr; padding-top: 16px; }
+      .feature { grid-template-columns: 1fr; gap: 6px; }
+    }
+
+    @media (max-width: 620px) {
+      .top nav a:not(.gh) { display: none; }
+      .panes { grid-template-columns: 1fr; }
+      .entries { flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+      .entries li { flex: none; }
+      .entries button { white-space: nowrap; grid-template-columns: auto; }
+      .entries .path { overflow: visible; }
+      .entries .size { display: none; }
+      .presets td.fmt, .presets th.fmt { display: none; }
+      .lede { font-size: 1.1rem; }
+    }
+  </style>
+</head>
+<body>
+  <header class="wrap top">
+    <a class="brand" href="./" aria-label="AFU Zip ana sayfa">
+      <img src="assets/logo.svg" alt="" width="36" height="36">
+      AFU Zip
+    </a>
+    <nav aria-label="Sayfa içi">
+      <a href="#ozellikler">Özellikler</a>
+      <a href="#derle">Derleme</a>
+      <a href="#yol-haritasi">Yol haritası</a>
+      <a class="gh" href="https://github.com/MihrimatriX/afu-zip">GitHub</a>
+    </nav>
+  </header>
+
+  <main>
+    <div class="wrap hero">
+      <div>
+        <h1>Arşivi açmadan içine bak.</h1>
+        <p class="lede">
+          AFU Zip, Windows için 7-Zip motorlu bir arşiv yöneticisi. Kodu, Markdown'ı, JSON'u, PDF'i ve videoyu
+          arşivden çıkarmadan gösterir; sıkıştırırken de codec değil amaç sorar.
+        </p>
+        <div class="actions">
+          <a class="button primary" href="https://github.com/MihrimatriX/afu-zip">
+            <svg viewBox="0 0 16 16" aria-hidden="true" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+            Kaynak kodu GitHub'da
+          </a>
+          <a class="button secondary" href="#derle">Nasıl derlenir</a>
+        </div>
+        <p class="status">Geliştirme önizlemesi, v0.3. Henüz hazır kurulum dosyası yok; uygulama kaynaktan derlenir.</p>
+      </div>
+
+      <!-- Canlı örnek: girdiye tıklayınca sağda önizlemesi açılır (uygulamadaki panelin sadeleştirilmiş hali). -->
+      <div class="window" aria-label="AFU Zip penceresi örneği">
+        <div class="titlebar">
+          <img src="assets/logo.svg" alt="" width="18" height="18">
+          <strong>proje.7z</strong> solid, LZMA2, 5 dosya
+        </div>
+        <div class="panes">
+          <ul class="entries" role="tablist" aria-label="Arşivdeki dosyalar" aria-orientation="vertical">
+            <li><button role="tab" id="t-md" aria-controls="p-md" aria-selected="true"><span class="path">README.md</span><span class="size">2 KB</span></button></li>
+            <li><button role="tab" id="t-cs" aria-controls="p-cs" aria-selected="false" tabindex="-1"><span class="path">src/Oyuncu.cs</span><span class="size">1 KB</span></button></li>
+            <li><button role="tab" id="t-json" aria-controls="p-json" aria-selected="false" tabindex="-1"><span class="path">kayit.json</span><span class="size">48 KB</span></button></li>
+            <li><button role="tab" id="t-svg" aria-controls="p-svg" aria-selected="false" tabindex="-1"><span class="path">logo.svg</span><span class="size">1 KB</span></button></li>
+            <li><button role="tab" id="t-bin" aria-controls="p-bin" aria-selected="false" tabindex="-1"><span class="path">oyun.exe</span><span class="size">12 MB</span></button></li>
+          </ul>
+
+          <div class="preview">
+            <header aria-live="polite"><strong id="pv-name">README.md</strong><span id="pv-meta">Markdown, 2 KB, UTF-8</span></header>
+
+            <div class="pane md" id="p-md" role="tabpanel" aria-labelledby="t-md">
+              <h3>Neon Sokaklar</h3>
+              <p>Siberpunk bir şehirde geçen aksiyon oyunu. Derlemek için <code>dotnet build</code> yeterli.</p>
+              <table>
+                <tr><th>Platform</th><th>Durum</th></tr>
+                <tr><td>Windows</td><td>Oynanabilir</td></tr>
+                <tr><td>Steam Deck</td><td>Test ediliyor</td></tr>
+              </table>
+            </div>
+
+            <div class="pane" id="p-cs" role="tabpanel" aria-labelledby="t-cs" hidden>
+<pre class="code"><span class="ln">1</span><span class="kw">namespace</span> Oyun;
+<span class="ln">2</span>
+<span class="ln">3</span><span class="co">/// Oyuncunun konumu ve hareketi.</span>
+<span class="ln">4</span><span class="kw">public sealed class</span> <span class="ty">Oyuncu</span>(<span class="kw">string</span> ad)
+<span class="ln">5</span>{
+<span class="ln">6</span>    <span class="kw">const float</span> Hız = <span class="nu">5.5f</span>;
+<span class="ln">7</span>
+<span class="ln">8</span>    <span class="kw">public string</span> Ad =&gt; ad;
+<span class="ln">9</span>    <span class="kw">public</span> <span class="ty">Vector3</span> Konum { <span class="kw">get</span>; <span class="kw">set</span>; }
+<span class="ln">10</span>
+<span class="ln">11</span>    <span class="kw">public void</span> İlerle(<span class="ty">Vector3</span> yön, <span class="kw">float</span> dt)
+<span class="ln">12</span>        =&gt; Konum += yön * Hız * dt;
+<span class="ln">13</span>}</pre>
+            </div>
+
+            <div class="pane" id="p-json" role="tabpanel" aria-labelledby="t-json" hidden>
+              <ul class="tree">
+                <li>▾ { oyun, sürüm, ayarlar, oyuncular }
+                  <ul>
+                    <li><span class="ke">oyun</span>: <span class="st">"Neon Sokaklar"</span></li>
+                    <li><span class="ke">sürüm</span>: <span class="st">"0.9.1"</span></li>
+                    <li>▾ <span class="ke">ayarlar</span><span class="badge">3</span>
+                      <ul>
+                        <li><span class="ke">çözünürlük</span>: [ <span class="nu">2560</span>, <span class="nu">1440</span> ]</li>
+                        <li><span class="ke">vsync</span>: <span class="kw">true</span></li>
+                        <li><span class="ke">ses</span>: <span class="kw">null</span></li>
+                      </ul>
+                    </li>
+                    <li>▸ <span class="ke">oyuncular</span><span class="badge">1.200</span></li>
+                  </ul>
+                </li>
+              </ul>
+            </div>
+
+            <div class="pane" id="p-svg" role="tabpanel" aria-labelledby="t-svg" hidden>
+              <div class="svgpane"><img src="assets/logo.svg" alt="logo.svg önizlemesi" width="120" height="120"></div>
+            </div>
+
+            <div class="pane" id="p-bin" role="tabpanel" aria-labelledby="t-bin" hidden>
+              <pre class="hex" id="hex"></pre>
+            </div>
+          </div>
+        </div>
+        <div class="zipper" aria-hidden="true"><div class="cover"></div><div class="slider"></div></div>
+      </div>
+    </div>
+
+    <section id="ozellikler">
+      <div class="wrap">
+        <h2>Neler yapar</h2>
+        <p class="intro">
+          NanaZip ve 7-Zip'in gücünü bırakmadan, Explorer'dan alışık olduğunuz bir arayüz ve gerçek bir önizleyici.
+        </p>
+        <dl class="features">
+          <div class="feature">
+            <dt>Her biçimi açar</dt>
+            <dd>
+              7z, ZIP, RAR, TAR, gzip, xz, Zstandard, ISO, CAB, WIM ve 7-Zip'in tanıdığı elliye yakın biçim.
+              <strong>tar.gz tek tıkla tar'ın içine açılır</strong>, arşivin içindeki arşiv aynı sekmede klasör gibi gezilir.
+            </dd>
+          </div>
+          <div class="feature">
+            <dt>Çıkarmadan önizler</dt>
+            <dd>
+              Dosyanın türü uzantıdan değil içerikten anlaşılır. Kod Monaco'da (VS Code'un editörü), Markdown işlenmiş,
+              JSON ve XML ağaç olarak, ayrıca PDF, resim, video ve ses; tanınmayan her şey hex olarak.
+              <strong>Solid 7z arşivlerde aynı bloktaki dosyalar ilk önizlemeden sonra anında gelir.</strong>
+            </dd>
+          </div>
+          <div class="feature">
+            <dt>Amaç seçerek sıkıştırır</dt>
+            <dd>
+              LZMA2 mi Zstandard mı diye düşünmeniz gerekmez: amacınızı seçersiniz, AFU Zip biçimi ve ayarları belirler,
+              tahmini boyutu ve süreyi gösterir. İçeriğin çoğu zaten sıkıştırılmışsa (video, jpg) bunu da söyler.
+              AES-256 şifreleme ve ciltlere bölme dahil.
+            </dd>
+          </div>
+          <div class="feature">
+            <dt>Arşivi yerinde düzenler</dt>
+            <dd>
+              Dosya ekleyin (sürükleyip bırakarak da), silin, yeniden adlandırın. Değişmeyen dosyalar yeniden sıkıştırılmaz.
+              <strong>Yeni arşiv bitince eskisinin yerine konur; işlem yarıda kalırsa eski arşiv bozulmaz.</strong>
+            </dd>
+          </div>
+          <div class="feature">
+            <dt>Güvenli çıkarır</dt>
+            <dd>
+              Arşivden dışarı yazmaya çalışan yollar (zip slip), zip bombaları, CON ve NUL gibi Windows aygıt adları ve
+              gizli veri akışları engellenir. İnternetten inen arşivin "internetten geldi" işareti çıkan dosyalara taşınır.
+            </dd>
+          </div>
+        </dl>
+      </div>
+    </section>
+
+    <section id="presetler">
+      <div class="wrap">
+        <h2>Beş amaç, tek tık</h2>
+        <p class="intro">Gelişmiş ayarlar her zaman bir tık uzakta; ama çoğu zaman bunlardan biri yeter.</p>
+        <table class="presets">
+          <thead>
+            <tr><th scope="col">Amaç</th><th scope="col" class="fmt">Biçim</th><th scope="col">Ne zaman</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Hızlı</td><td class="fmt">7z, Zstandard</td><td>Büyük dosyalar ve günlük yedek: saniyeler içinde biter.</td></tr>
+            <tr><td>Dengeli</td><td class="fmt">7z, LZMA2, solid</td><td>Kararsızsanız bu. Boyut ve hız arasında iyi bir orta nokta.</td></tr>
+            <tr><td>Maksimum</td><td class="fmt">7z, LZMA2 9, solid</td><td>Arşivleme ve dağıtım: en küçük dosya, daha uzun süre.</td></tr>
+            <tr><td>Paylaşım</td><td class="fmt">ZIP, Deflate</td><td>Karşı tarafın ne kullandığını bilmiyorsanız: her sistem açar.</td></tr>
+            <tr><td>Geliştirici</td><td class="fmt">tar.zst</td><td>Linux, CI ve paket dosyaları için.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="derle">
+      <div class="wrap">
+        <h2>Kaynaktan derle</h2>
+        <p class="intro">Hazır kurulum dosyası Faz 4'te (MSIX) gelecek. O zamana kadar birkaç komutla çalıştırabilirsiniz.</p>
+        <ol class="steps">
+          <li>
+            <div>
+              <h3>Araçları kurun</h3>
+              <p>
+                Windows 11 (x64 veya ARM64), <a href="https://dotnet.microsoft.com/download/dotnet/10.0">.NET 10 SDK</a>,
+                <a href="https://nodejs.org/">Node.js 22</a> ve <a href="https://www.7-zip.org/">7-Zip</a>.
+                Zstandard için <a href="https://github.com/mcmilk/7-Zip-zstd">7-Zip ZS</a> önerilir; AFU Zip ikisini de kendisi bulur.
+              </p>
+            </div>
+          </li>
+          <li>
+            <div>
+              <h3>Depoyu indirin</h3>
+<pre class="shell">git clone https://github.com/MihrimatriX/afu-zip.git
+cd afu-zip</pre>
+            </div>
+          </li>
+          <li>
+            <div>
+              <h3>Çalıştırın</h3>
+<pre class="shell">dotnet run --project src/AfuZip.App     <span class="co"># arayüz</span>
+dotnet test --project tests/AfuZip.Tests <span class="co"># testler</span></pre>
+              <p style="margin-top:12px">Komut satırı aracı da var:</p>
+<pre class="shell">dotnet run --project src/AfuZip.Cli -- x indirilen.rar            <span class="co"># akıllı çıkarma</span>
+dotnet run --project src/AfuZip.Cli -- a yedek.7z Belgeler -m max  <span class="co"># en küçük arşiv</span></pre>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section id="yol-haritasi">
+      <div class="wrap">
+        <h2>Yol haritası</h2>
+        <p class="intro">AFU Zip aşama aşama geliştiriliyor; her fazın sonunda testler ve kontrol listesi var.</p>
+        <ol class="roadmap">
+          <li class="done"><span class="phase">0</span><div><h3>Temel</h3><p>7z.dll köprüsü, yedek motor, komut satırı.</p></div></li>
+          <li class="done"><span class="phase">1</span><div><h3>Okuma</h3><p>Sekmeler, klasör ağacı, arama, iç içe arşivler, görev kuyruğu, parola.</p></div></li>
+          <li class="done"><span class="phase">2</span><div><h3>Önizleme</h3><p>Monaco, Markdown, JSON ve XML ağacı, PDF, medya, hex, solid blok önbelleği.</p></div></li>
+          <li class="done"><span class="phase">3</span><div><h3>Oluşturma ve düzenleme</h3><p>Amaç seçimi, tahmin, AES-256, ciltler; ekle, sil, yeniden adlandır.</p></div></li>
+          <li class="next"><span class="phase">4</span><div><h3>Windows entegrasyonu</h3><p>MSIX kurulum, sağ tık menüsü, Explorer'a sürükleme, bildirimler.</p></div></li>
+          <li><span class="phase">5</span><div><h3>Önizleme v2</h3><p>Yazı tipleri, 3D modeller, program dosyaları, sistemin kendi önizleyicileri.</p></div></li>
+          <li><span class="phase">6</span><div><h3>1.0</h3><p>Sertleştirme, performans ve ilk kararlı sürüm.</p></div></li>
+        </ol>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <p>
+        AFU Zip açık kaynaklıdır (MIT lisansı) ve <a href="https://github.com/MihrimatriX">MihrimatriX</a> tarafından geliştiriliyor.
+        Hata bildirimi ve öneriler için <a href="https://github.com/MihrimatriX/afu-zip/issues">GitHub Issues</a>.
+      </p>
+      <p>
+        7z.dll uygulamayla dağıtılmaz; bilgisayarınızdaki 7-Zip kurulumundan yüklenir (GNU LGPL). RAR arşivleri unRAR lisansı gereği yalnızca okunur.
+      </p>
+    </div>
+  </footer>
+
+  <script>
+    // Canlı örnek: girdiler sekme gibi çalışır (tık, ok tuşları, Home/End).
+    const meta = {
+      'p-md': ['README.md', 'Markdown, 2 KB, UTF-8'],
+      'p-cs': ['src/Oyuncu.cs', 'C#, 1 KB, UTF-8'],
+      'p-json': ['kayit.json', 'JSON, 48 KB, ağaç görünümü'],
+      'p-svg': ['logo.svg', 'SVG, 1 KB'],
+      'p-bin': ['oyun.exe', 'İkili dosya, 12 MB'],
+    };
+    const tabs = [...document.querySelectorAll('.entries [role="tab"]')];
+    function select(tab, focus) {
+      for (const t of tabs) {
+        const on = t === tab;
+        t.setAttribute('aria-selected', String(on));
+        t.tabIndex = on ? 0 : -1;
+        document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+      }
+      const [name, info] = meta[tab.getAttribute('aria-controls')];
+      document.getElementById('pv-name').textContent = name;
+      document.getElementById('pv-meta').textContent = info;
+      if (focus) tab.focus();
+    }
+    tabs.forEach((tab, i) => {
+      tab.addEventListener('click', () => select(tab, false));
+      tab.addEventListener('keydown', (e) => {
+        const keys = { ArrowDown: i + 1, ArrowRight: i + 1, ArrowUp: i - 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 };
+        if (!(e.key in keys)) return;
+        e.preventDefault();
+        select(tabs[(keys[e.key] + tabs.length) % tabs.length], true);
+      });
+    });
+
+    // Hex görünümü: bir PE dosyasının başı (MZ başlığı).
+    const bytes = [0x4D,0x5A,0x90,0x00,0x03,0x00,0x00,0x00,0x04,0x00,0x00,0x00,0xFF,0xFF,0x00,0x00,
+      0xB8,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x40,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+      ...Array(28).fill(0), 0x80,0x00,0x00,0x00,
+      0x0E,0x1F,0xBA,0x0E,0x00,0xB4,0x09,0xCD,0x21,0xB8,0x01,0x4C,0xCD,0x21,0x54,0x68,
+      ...[...'is program cannot be run in DOS mode.'].map((c) => c.charCodeAt(0))];
+    const rows = [];
+    for (let o = 0; o < bytes.length; o += 8) {
+      const chunk = bytes.slice(o, o + 8);
+      const hex = chunk.map((b) => b.toString(16).toUpperCase().padStart(2, '0') + ' ').join('');
+      const ascii = chunk.map((b) => (b >= 32 && b < 127 ? String.fromCharCode(b) : '.')).join('');
+      rows.push(`<span class="off">${o.toString(16).toUpperCase().padStart(8, '0')}</span>  ${hex.padEnd(25)}<span class="asc">${ascii.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</span>`);
+    }
+    document.getElementById('hex').innerHTML = rows.join('\n');
+  </script>
+</body>
+</html>
