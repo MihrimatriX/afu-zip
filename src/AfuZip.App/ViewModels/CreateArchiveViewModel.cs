@@ -93,7 +93,7 @@ public sealed class CreateArchiveViewModel : ObservableObject
         Sources.CollectionChanged += (_, _) => OnSourcesChanged();
 
         var initial = Presets.FirstOrDefault(p => p.IsAvailable && p.Preset == CompressionPreset.Balanced) ?? Presets.First(p => p.IsAvailable);
-        _targetPath = DefaultTarget(Sources, Formats[0].Extension);
+        _targetPath = ArchiveNaming.DefaultTarget(Sources, Formats[0].Extension);
         SelectedPresetIndex = Presets.ToList().IndexOf(initial);
         OnSourcesChanged();
     }
@@ -137,7 +137,7 @@ public sealed class CreateArchiveViewModel : ObservableObject
             SetMethodIndex(0);
             if (_level > format.MaxLevel)
                 Level = format.MaxLevel;
-            TargetPath = ReplaceExtension(_targetPath, format.Extension);
+            TargetPath = ArchiveNaming.ReplaceExtension(_targetPath, format.Extension);
             OnPropertyChanged(nameof(Format));
             OnPropertyChanged(nameof(MaxLevel));
             OnPropertyChanged(nameof(CanEncrypt));
@@ -455,30 +455,4 @@ public sealed class CreateArchiveViewModel : ObservableObject
         hasSevenZip
             ? hasZstd || preset.Format != ArchiveFormat.Zstd // Hızlı preset (7z + ZSTD) ana 7-Zip'te LZMA2'ye düşer
             : preset.Format is ArchiveFormat.Zip or ArchiveFormat.Tar || (preset.Format == ArchiveFormat.GZip && preset.TarWrapped);
-
-    private static string DefaultTarget(IEnumerable<string> sources, string extension)
-    {
-        var first = sources.FirstOrDefault();
-        if (first is null)
-            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "Arşiv" + extension);
-
-        var full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(first));
-        var folder = Path.GetDirectoryName(full) ?? full;
-        // Tek kaynak: onun adı; birden fazla: bulundukları klasörün adı.
-        var name = sources.Skip(1).Any()
-            ? Path.GetFileName(folder)
-            : Directory.Exists(full) ? Path.GetFileName(full) : Path.GetFileNameWithoutExtension(full);
-        return Path.Combine(folder, (string.IsNullOrEmpty(name) ? "Arşiv" : name) + extension);
-    }
-
-    internal static string ReplaceExtension(string path, string extension)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-            return path;
-        string[] known = [".tar.gz", ".tar.xz", ".tar.bz2", ".tar.zst", ".tgz", ".txz", ".7z", ".zip", ".tar", ".wim"];
-        var trimmed = known.FirstOrDefault(k => path.EndsWith(k, StringComparison.OrdinalIgnoreCase)) is { } match
-            ? path[..^match.Length]
-            : path;
-        return trimmed + extension;
-    }
 }

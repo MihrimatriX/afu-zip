@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Windows.ApplicationModel.DataTransfer;
+using Windows.Storage;
 using Windows.Storage.Pickers;
 using Windows.System;
 
@@ -12,6 +13,9 @@ namespace AfuZip.App.Views;
 /// <summary>Bir sekmenin içeriği. Görünüm modeli kurucuda verilir; tüm x:Bind'ler ona bağlanır.</summary>
 public sealed partial class ArchiveView : UserControl
 {
+    /// <summary>Uygulamanın kendi sürüklemesi: listeye veya pencereye geri bırakılınca "ekle/aç" sayılmasın.</summary>
+    internal const string InternalDragFormat = "AfuZip.InternalDrag";
+
     private const double MinPreviewWidth = 260;
     private const double MinListWidth = 360;
 
@@ -245,9 +249,55 @@ public sealed partial class ArchiveView : UserControl
             ViewModel.Rename(item, box.Text.Trim());
     }
 
+    // --- Dışarı sürükleme ve dışarıda düzenleme ---------------------------------------------------
+
+    /// <summary>
+    /// Dosyalar sürükleme başlarken değil, Explorer'a bırakıldığı anda çıkarılır (gecikmeli veri): vazgeçilen
+    /// sürüklemede hiçbir şey çıkarılmaz, büyük dosyalarda sürükleme takılmaz.
+    /// </summary>
+    private void OnDragItemsStarting(object sender, DragItemsStartingEventArgs e)
+    {
+        var items = e.Items.OfType<EntryItem>().ToList();
+        if (items.Count == 0 || !ViewModel.HasArchive)
+        {
+            e.Cancel = true;
+            return;
+        }
+
+        e.Data.RequestedOperation = DataPackageOperation.Copy;
+        e.Data.SetData(InternalDragFormat, ViewModel.ArchivePath);
+        e.Data.SetDataProvider(StandardDataFormats.StorageItems, async request =>
+        {
+            var deferral = request.GetDeferral();
+            try
+            {
+                var storage = new List<IStorageItem>();
+                foreach (var path in await ViewModel.ExtractForDragAsync(items))
+                {
+                    storage.Add(Directory.Exists(path)
+                        ? await StorageFolder.GetFolderFromPathAsync(path)
+                        : await StorageFile.GetFileFromPathAsync(path));
+                }
+                request.SetData(storage);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArchivePasswordException)
+            {
+                // Bırakma hedefi veri alamaz; Explorer işlemi sessizce iptal eder.
+            }
+            finally
+            {
+                deferral.Complete();
+            }
+        });
+    }
+
+    private void OnApplyExternalEdits(object sender, RoutedEventArgs e) => ViewModel.ApplyExternalEdits();
+
+    private void OnDismissExternalEdits(InfoBar sender, object args) => ViewModel.DismissExternalEdits();
+
     private void OnListDragOver(object sender, DragEventArgs e)
     {
-        if (!ViewModel.CanEdit || !e.DataView.Contains(StandardDataFormats.StorageItems))
+        if (!ViewModel.CanEdit || !e.DataView.Contains(StandardDataFormats.StorageItems) || e.DataView.Contains(InternalDragFormat))
             return;
         e.AcceptedOperation = DataPackageOperation.Copy;
         e.DragUIOverride.Caption = "Arşive ekle";
@@ -256,7 +306,7 @@ public sealed partial class ArchiveView : UserControl
 
     private async void OnListDrop(object sender, DragEventArgs e)
     {
-        if (!ViewModel.CanEdit || !e.DataView.Contains(StandardDataFormats.StorageItems))
+        if (!ViewModel.CanEdit || !e.DataView.Contains(StandardDataFormats.StorageItems) || e.DataView.Contains(InternalDragFormat))
             return;
         // Pencerenin "arşivi aç" bırakma davranışına geçmesin.
         e.Handled = true;

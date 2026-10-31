@@ -24,7 +24,14 @@ public sealed partial class MainWindow : Window
 
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
+        AppIcon.Apply(AppWindow);
+        if (AppIcon.PngPath is { } png)
+        {
+            TitleIcon.Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri(png));
+            WelcomeIcon.Source = TitleIcon.Source;
+        }
         AppWindow.Resize(new Windows.Graphics.SizeInt32(1400, 860));
+        ShellSuggestion.IsOpen = !ShellIntegration.IsRegistered;
 
         // Sekme içerikleri kodda oluşturulur: her TabViewItem kendi ArchiveView'ını taşır.
         ViewModel.Tabs.CollectionChanged += OnTabsChanged;
@@ -148,7 +155,7 @@ public sealed partial class MainWindow : Window
 
     private void OnDragOver(object sender, DragEventArgs e)
     {
-        if (e.DataView.Contains(StandardDataFormats.StorageItems))
+        if (e.DataView.Contains(StandardDataFormats.StorageItems) && !e.DataView.Contains(ArchiveView.InternalDragFormat))
         {
             e.AcceptedOperation = DataPackageOperation.Copy;
             e.DragUIOverride.Caption = "Aç veya arşivle";
@@ -158,7 +165,7 @@ public sealed partial class MainWindow : Window
     /// <summary>Arşivler açılır; arşiv olmayan dosya ve klasörlerle "arşiv oluştur" diyaloğu açılır.</summary>
     private async void OnDrop(object sender, DragEventArgs e)
     {
-        if (!e.DataView.Contains(StandardDataFormats.StorageItems))
+        if (!e.DataView.Contains(StandardDataFormats.StorageItems) || e.DataView.Contains(ArchiveView.InternalDragFormat))
             return;
 
         var deferral = e.GetDeferral();
@@ -203,11 +210,62 @@ public sealed partial class MainWindow : Window
         await ShowCreateDialogAsync([]);
     }
 
+    /// <summary>Sağ tık "Arşive ekle…": pencere yeni açıldıysa içerik yüklenene kadar beklenir (diyalog XamlRoot ister).</summary>
+    internal async Task ShowCreateDialogWhenReadyAsync(IReadOnlyList<string> sources)
+    {
+        if (Content.XamlRoot is null && Content is FrameworkElement root)
+        {
+            var loaded = new TaskCompletionSource();
+            root.Loaded += (_, _) => loaded.TrySetResult();
+            await loaded.Task;
+        }
+        await ShowCreateDialogAsync(sources);
+    }
+
     private async Task ShowCreateDialogAsync(IEnumerable<string> sources)
     {
         var viewModel = ViewModel.NewCreateArchive(sources);
         if (await CreateArchivePanel.ShowAsync(Content.XamlRoot, () => Handle, viewModel) is { } request)
             ViewModel.CreateArchive(request, viewModel.OpenWhenDone);
+    }
+
+    // --- Windows ile bütünleşme ------------------------------------------------------------------
+
+    private void OnSettingsOpening(object? sender, object e)
+    {
+        ShellToggle.Toggled -= OnShellToggled;
+        ShellToggle.IsOn = ShellIntegration.IsRegistered;
+        ShellToggle.Toggled += OnShellToggled;
+    }
+
+    private void OnShellToggled(object sender, RoutedEventArgs e) => SetShellIntegration(ShellToggle.IsOn);
+
+    private void OnSuggestionRegister(object sender, RoutedEventArgs e) => SetShellIntegration(true);
+
+    private void SetShellIntegration(bool enabled)
+    {
+        try
+        {
+            if (enabled)
+                ShellIntegration.Register();
+            else
+                ShellIntegration.Unregister();
+            ShellSuggestion.IsOpen = false;
+            ViewModel.SetStatus(enabled
+                ? "Explorer'a eklendi: arşivlere ve dosyalara sağ tıklayın (Windows 11'de \"Daha fazla seçenek göster\")."
+                : "Explorer sağ tık menüsünden kaldırıldı.");
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or System.Security.SecurityException)
+        {
+            ViewModel.SetStatus($"Kayıt defterine yazılamadı: {ex.Message}");
+        }
+    }
+
+    private async void OnOpenDefaultApps(object sender, RoutedEventArgs e)
+    {
+        if (!ShellIntegration.IsRegistered)
+            SetShellIntegration(true);
+        await Windows.System.Launcher.LaunchUriAsync(new Uri("ms-settings:defaultapps?registeredAppUser=AFU%20Zip"));
     }
 
     // --- Görevler --------------------------------------------------------------------------------

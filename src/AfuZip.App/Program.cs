@@ -6,8 +6,8 @@ using Microsoft.Windows.AppLifecycle;
 namespace AfuZip.App;
 
 /// <summary>
-/// Tek örnek (single instance) giriş noktası. İkinci örnek, aktivasyonunu çalışan örneğe iletip kapanır;
-/// Faz 4'te bağlam menüsü komutları da bu yoldan görev kuyruğuna düşecek.
+/// Tek örnek (single instance) giriş noktası. İkinci örnek (çift tıklama, sağ tık komutu, bildirim) aktivasyonunu
+/// çalışan örneğe iletip kapanır; böylece art arda gelen sağ tık komutları tek pencerede toplanır.
 /// </summary>
 public static partial class Program
 {
@@ -35,7 +35,7 @@ public static partial class Program
         var main = AppInstance.FindOrRegisterForKey(InstanceKey);
         if (main.IsCurrent)
         {
-            main.Activated += (_, e) => (Application.Current as App)?.OnRedirectedActivation(e);
+            main.Activated += (_, e) => App.OnRedirected(e);
             return false;
         }
 
@@ -105,6 +105,20 @@ internal static class CommandLine
             yield return current.ToString();
     }
 
-    public static IEnumerable<string> ExistingFiles(IEnumerable<string> args) =>
-        args.Where(a => !a.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) && File.Exists(a)).Select(Path.GetFullPath);
+    /// <summary>Yönlendirilen aktivasyonun argüman dizisi programın kendi yolunu da içerir; o atlanır.</summary>
+    public static IEnumerable<string> WithoutExecutable(IEnumerable<string> args)
+    {
+        var first = true;
+        foreach (var arg in args)
+        {
+            if (first && Path.GetFileNameWithoutExtension(arg).Equals("AfuZip", StringComparison.OrdinalIgnoreCase) &&
+                (arg.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) || arg.EndsWith(".dll", StringComparison.OrdinalIgnoreCase)))
+            {
+                first = false;
+                continue;
+            }
+            first = false;
+            yield return arg;
+        }
+    }
 }

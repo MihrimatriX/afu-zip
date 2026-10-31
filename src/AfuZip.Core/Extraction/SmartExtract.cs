@@ -32,6 +32,10 @@ public static partial class SmartExtract
         return UniqueDirectory(Path.Combine(baseDirectory, SafePath.SanitizeSegment(ArchiveStem(archiveFileName))));
     }
 
+    /// <summary>"Arşiv adıyla klasöre çıkar": her zaman yeni bir klasör (varsa "ad (2)").</summary>
+    public static string FolderFor(string archiveFileName, string baseDirectory) =>
+        UniqueDirectory(Path.Combine(baseDirectory, SafePath.SanitizeSegment(ArchiveStem(archiveFileName))));
+
     /// <summary>"yedek.tar.gz" → "yedek", "film.part1.rar" → "film", "proje.7z.001" → "proje".</summary>
     public static string ArchiveStem(string archiveFileName)
     {

@@ -81,7 +81,7 @@ public sealed partial class CreateArchivePanel : UserControl
         var format = ViewModel.Format;
         var picker = new FileSavePicker
         {
-            SuggestedFileName = Path.GetFileName(CreateArchiveViewModel.ReplaceExtension(ViewModel.TargetPath, "")) is { Length: > 0 } name
+            SuggestedFileName = Path.GetFileName(ArchiveNaming.ReplaceExtension(ViewModel.TargetPath, "")) is { Length: > 0 } name
                 ? name
                 : "Arşiv",
         };
