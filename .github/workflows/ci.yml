@@ -69,7 +69,6 @@ jobs:
       # Uygulamanın kendisi, uçtan uca: sağ tık "arşiv adıyla klasöre çıkar" komutu ilerleme penceresiyle çalışır,
       # iş bitince pencere kendiliğinden kapanır ve süreç sonlanır.
       - name: Uygulama duman testi (sağ tık komutu)
-        continue-on-error: true
         shell: pwsh
         run: |
           $exe = Get-ChildItem src/AfuZip.App/bin/x64/Release -Recurse -Filter AfuZip.exe | Select-Object -First 1
@@ -83,6 +82,26 @@ jobs:
           if (-not $p.WaitForExit(120000)) { $p.Kill(); throw "Uygulama 2 dakikada kapanmadı" }
           if (-not (Test-Path appsmoke/paket/kaynak/not.txt)) { throw "Çıkarılan dosya yok (çıkış kodu $($p.ExitCode))" }
           Write-Host "Sağ tık komutu çalıştı, çıkış kodu $($p.ExitCode)"
+
+      # Explorer çok seçimde komutu her dosya için ayrı süreçte başlatır: iki istek tek arşivde birleşmeli.
+      - name: Uygulama duman testi (çok seçimle sıkıştırma)
+        shell: pwsh
+        run: |
+          $exe = (Get-ChildItem src/AfuZip.App/bin/x64/Release -Recurse -Filter AfuZip.exe | Select-Object -First 1).FullName
+          New-Item -ItemType Directory -Force appsmoke/coklu | Out-Null
+          Set-Content appsmoke/coklu/a.txt "bir"
+          Set-Content appsmoke/coklu/b.txt "iki"
+          $first = Start-Process -FilePath $exe -ArgumentList '--compress', 'balanced', "`"$PWD\appsmoke\coklu\a.txt`"" -PassThru
+          Start-Sleep -Milliseconds 300
+          $second = Start-Process -FilePath $exe -ArgumentList '--compress', 'balanced', "`"$PWD\appsmoke\coklu\b.txt`"" -PassThru
+          foreach ($p in $first, $second) {
+            if (-not $p.WaitForExit(120000)) { $p.Kill(); throw "Uygulama 2 dakikada kapanmadı" }
+          }
+          $archives = @(Get-ChildItem appsmoke/coklu -Filter *.7z)
+          if ($archives.Count -ne 1) { throw "Tek arşiv bekleniyordu, $($archives.Count) bulundu: $($archives.Name -join ', ')" }
+          $list = & "C:\Program Files\7-Zip\7z.exe" l $archives[0].FullName
+          if (-not (($list -match 'a\.txt') -and ($list -match 'b\.txt'))) { $list; throw "Arşivde iki dosya da yok" }
+          Write-Host "Birleşik arşiv: $($archives[0].Name)"
 
       - name: Uygulama (ARM64)
         run: dotnet build src/AfuZip.App -c Release -p:Platform=ARM64
