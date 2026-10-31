@@ -43,6 +43,8 @@ public sealed class ArchiveTree
     private readonly Dictionary<string, HashSet<string>> _subfolders = new(StringComparer.Ordinal) { [""] = [] };
     private readonly Dictionary<string, List<ArchiveEntry>> _files = new(StringComparer.Ordinal);
     private readonly Dictionary<string, ArchiveEntry> _folderEntries = new(StringComparer.Ordinal);
+    // Packed < 0: altındaki dosyalardan en az birinin sıkışık boyutu bilinmiyor (solid blokta yalnızca bloğun ilk
+    // dosyası bloğun tamamını taşır); klasör toplamı o zaman anlamsızdır ve gösterilmez.
     private readonly Dictionary<string, (int Files, long Size, long Packed)> _stats = new(StringComparer.Ordinal);
     private readonly CultureInfo _culture;
     private readonly StringComparer _nameOrder;
@@ -76,7 +78,9 @@ public sealed class ArchiveTree
             for (var folder = parent; ; folder = Parent(folder))
             {
                 var s = _stats.GetValueOrDefault(folder);
-                _stats[folder] = (s.Files + 1, s.Size + entry.Size, s.Packed + (entry.PackedSize ?? 0));
+                var known = entry.PackedSize is > 0 || entry.Size == 0;
+                var packed = s.Packed < 0 || !known ? -1 : s.Packed + (entry.PackedSize ?? 0);
+                _stats[folder] = (s.Files + 1, s.Size + entry.Size, packed);
                 if (folder.Length == 0)
                     break;
             }
@@ -92,7 +96,7 @@ public sealed class ArchiveTree
     public bool FolderExists(string folder) => _subfolders.ContainsKey(folder);
 
     public FolderStats StatsOf(string folder) =>
-        _stats.TryGetValue(folder, out var s) ? new(s.Files, s.Size, s.Packed) : new(0, 0, 0);
+        _stats.TryGetValue(folder, out var s) ? new(s.Files, s.Size, Math.Max(0, s.Packed)) : new(0, 0, 0);
 
     public IReadOnlyList<TreeItem> Children(string folder, SortColumn sort = SortColumn.Name, bool descending = false)
     {

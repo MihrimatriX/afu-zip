@@ -82,6 +82,9 @@ public sealed partial class MainWindow : Window
                 var item = new TabViewItem
                 {
                     Tag = tab,
+                    // TabView içeriği sekmenin hizalamasını alır; varsayılanda içerik kendi yüksekliğine büzülüyordu.
+                    HorizontalContentAlignment = HorizontalAlignment.Stretch,
+                    VerticalContentAlignment = VerticalAlignment.Stretch,
                     Header = tab.Title,
                     IconSource = new FontIconSource { Glyph = "" },
                     Content = new ArchiveView(tab, () => Handle) { Margin = new Thickness(0, 8, 0, 8) },
