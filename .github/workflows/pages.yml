@@ -1,0 +1,33 @@
+name: pages
+
+# Site kaynağı main dalındaki docs/ klasörüdür; GitHub Pages gh-pages dalından yayınlar.
+# docs/ her değiştiğinde klasörün geçmişi gh-pages dalına aktarılır.
+on:
+  push:
+    branches: [main]
+    paths:
+      - docs/**
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: docs klasörünü gh-pages dalına aktar
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git subtree split --prefix docs -b site
+          git push --force origin site:gh-pages
