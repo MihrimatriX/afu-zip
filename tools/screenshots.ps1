@@ -132,3 +132,5 @@ $p = Start-Process -FilePath $Exe -ArgumentList "--extract-folder", "`"$(Resolve
 try { $h = Wait-Window $p; Start-Sleep -Milliseconds 2500; Shot $h "09-ilerleme" } catch { Write-Host "İlerleme: $_" }
 $p.WaitForExit(180000) | Out-Null
 Get-ChildItem $Out | Format-Table Name, Length
+$log = Join-Path $env:LOCALAPPDATA "AfuZip\logs\afuzip.log"
+if (Test-Path $log) { Write-Host "--- Uygulama günlüğü ---"; Get-Content $log | Write-Host }

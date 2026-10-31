@@ -40,6 +40,8 @@ public partial class App : Application
     public App()
     {
         InitializeComponent();
+        UnhandledException += (_, e) => AppLog.Error("Yakalanmamış istisna", e.Exception);
+        TaskScheduler.UnobservedTaskException += (_, e) => AppLog.Error("Gözlenmeyen görev istisnası", e.Exception);
 
         var builder = Host.CreateApplicationBuilder();
         // Kayıt sırası motor önceliğidir: önce 7z.dll, bulunamazsa yönetilen motor.
