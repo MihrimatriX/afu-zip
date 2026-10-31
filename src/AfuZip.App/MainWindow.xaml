@@ -174,7 +174,7 @@
                         <StackPanel Spacing="12" Width="340">
                             <TextBlock Text="Windows ile bütünleşme" Style="{StaticResource BodyStrongTextBlockStyle}" />
                             <ToggleSwitch x:Name="ShellToggle" Header="Explorer sağ tık menüsü ve &quot;Birlikte aç&quot;"
-                                          Toggled="OnShellToggled" />
+                                          OnContent="Açık" OffContent="Kapalı" Toggled="OnShellToggled" />
                             <TextBlock TextWrapping="Wrap" Style="{StaticResource CaptionTextBlockStyle}"
                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                        Text="Arşivlerde: aç, buraya çıkar, klasöre çıkar, test et. Her dosya ve klasörde: arşive ekle, 7z veya zip olarak sıkıştır. Windows 11'de &quot;Daha fazla seçenek göster&quot; altında görünür. Yalnızca sizin kullanıcı hesabınız için kaydedilir." />
