@@ -1,0 +1,47 @@
+name: screenshots
+
+# Uygulamanın gerçek ekran görüntüleri: Windows makinesinde derleyip açar, tools/screenshots.ps1 ile yakalar ve
+# ci-screenshots dalına yazar (README ve site için).
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/screenshots.yml
+      - tools/screenshots.ps1
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  capture:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/AfuZip.Preview.Web/package-lock.json
+      - name: Derle
+        run: dotnet build src/AfuZip.App -c Release -p:Platform=x64
+      - name: Ekran görüntüleri
+        shell: pwsh
+        run: |
+          $exe = (Get-ChildItem src/AfuZip.App/bin/x64/Release -Recurse -Filter AfuZip.exe | Select-Object -First 1).FullName
+          ./tools/screenshots.ps1 -Exe $exe -Out "$env:RUNNER_TEMP/screenshots" -Work "$env:RUNNER_TEMP/shotwork"
+      - name: ci-screenshots dalına yaz
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch --orphan ci-screenshots
+          git rm -rf --cached . | Out-Null
+          Get-ChildItem -Force | Where-Object Name -ne '.git' | Remove-Item -Recurse -Force
+          Copy-Item "$env:RUNNER_TEMP/screenshots/*.png" .
+          git add *.png
+          git commit -m "Ekran görüntüleri ($env:GITHUB_SHA)"
+          git push --force origin ci-screenshots
