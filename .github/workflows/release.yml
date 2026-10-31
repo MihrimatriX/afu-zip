@@ -1,10 +1,13 @@
 name: release
 
-# v ile başlayan bir etiket gönderilince (git tag v0.4.0 && git push --tags) Windows için
-# kurulum gerektirmeyen zip paketleri derlenir ve GitHub Releases'e yüklenir.
+# Directory.Build.props'taki <Version> yükseltilip main'e gönderilince (ya da elle çalıştırılınca) o sürüm henüz
+# yayınlanmadıysa Windows için kurulum gerektirmeyen zip paketleri derlenir; etiket ve sürüm GitHub'da oluşturulur.
 on:
   push:
-    tags: ['v*']
+    branches: [main]
+    paths:
+      - Directory.Build.props
+      - .github/workflows/release.yml
   workflow_dispatch:
 
 permissions:
@@ -15,7 +18,28 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: true
 
 jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.check.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(grep -oP '(?<=<Version>)[^<]+' Directory.Build.props)
+          tag="v$version"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "$tag zaten yayınlanmış; yeni paket yok."
+          else
+            echo "tag=$tag" >> "$GITHUB_OUTPUT"
+            echo "Yayınlanacak: $tag"
+          fi
+
   package:
+    needs: version
+    if: needs.version.outputs.tag != ''
     runs-on: windows-latest
     strategy:
       matrix:
@@ -47,8 +71,7 @@ jobs:
           foreach ($f in 'AfuZip.exe', 'PreviewWeb/index.html', 'Assets/AfuZip.ico') {
             if (-not (Test-Path "publish/AfuZip/$f")) { throw "Pakette eksik: $f" }
           }
-          $name = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { 'dev' }
-          Compress-Archive -Path publish/AfuZip -DestinationPath "AfuZip-$name-${{ matrix.rid }}.zip"
+          Compress-Archive -Path publish/AfuZip -DestinationPath "AfuZip-${{ needs.version.outputs.tag }}-${{ matrix.rid }}.zip"
           Get-ChildItem *.zip | Format-Table Name, Length
 
       - uses: actions/upload-artifact@v7
@@ -58,8 +81,7 @@ jobs:
           if-no-files-found: error
 
   publish:
-    needs: package
-    if: github.ref_type == 'tag'
+    needs: [version, package]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v8
@@ -70,6 +92,7 @@ jobs:
       - name: Sürümü oluştur
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.version.outputs.tag }}
         run: |
           cat > notes.md <<'NOTES'
           Kurulum gerektirmez: zip'i bir klasöre açın ve `AfuZip.exe`'yi çalıştırın.
@@ -79,4 +102,5 @@ jobs:
           - Explorer sağ tık menüsü için uygulamada **Ayarlar → Explorer sağ tık menüsü**'nü açın.
           - Windows SmartScreen imzasız olduğu için uyarabilir: "Ek bilgi → Yine de çalıştır".
           NOTES
-          gh release create "$GITHUB_REF_NAME" dist/*.zip --repo "$GITHUB_REPOSITORY" --title "AFU Zip $GITHUB_REF_NAME" --notes-file notes.md --prerelease
+          gh release create "$TAG" dist/*.zip --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "AFU Zip $TAG" --notes-file notes.md --prerelease
