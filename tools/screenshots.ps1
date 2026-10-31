@@ -116,8 +116,9 @@ $p.CloseMainWindow() | Out-Null; $p.WaitForExit(15000) | Out-Null
 
 # --- 4-7: arşiv ve önizlemeler -----------------------------------------------------------------
 $p = Start-Process -FilePath $Exe -ArgumentList "`"$archive`"" -PassThru
-$h = Wait-Window $p; Fit $h; Start-Sleep -Seconds 4
-foreach ($item in @(@("README.md", "04-markdown"), @("Oyuncu.cs", "05-kod"), @("kayit.json", "06-json"), @("kapak.png", "07-resim"))) {
+$h = Wait-Window $p; Fit $h; Start-Sleep -Seconds 5
+Shot $h "04-arsiv"
+foreach ($item in @(@("README.md", "05-markdown"), @("Oyuncu.cs", "06-kod"), @("kayit.json", "07-json"), @("kapak.png", "08-resim"))) {
   try { Select-Entry $h $item[0]; Start-Sleep -Seconds 4; Shot $h $item[1] } catch { Write-Host "$($item[0]): $_" }
 }
 $p.CloseMainWindow() | Out-Null; $p.WaitForExit(15000) | Out-Null
@@ -128,6 +129,6 @@ $bigTxt = (Join-Path $Work 'buyuk.txt') -replace '\\', '/'
 python -c "import random; w=['arsiv','oyun','seviye','kaplama','ses','model','sahne','kod','veri','harita']; r=random.Random(1); open('$bigTxt','w').write(' '.join(r.choice(w)+str(r.randrange(999)) for _ in range(15000000)))"
 & "C:\Program Files\7-Zip\7z.exe" a "$Work/buyuk.7z" "$Work/buyuk.txt" -m0=PPMd -mx=9 | Out-Null
 $p = Start-Process -FilePath $Exe -ArgumentList "--extract-folder", "`"$(Resolve-Path "$Work/buyuk.7z")`"" -PassThru
-try { $h = Wait-Window $p; Start-Sleep -Milliseconds 2500; Shot $h "08-ilerleme" } catch { Write-Host "İlerleme: $_" }
+try { $h = Wait-Window $p; Start-Sleep -Milliseconds 2500; Shot $h "09-ilerleme" } catch { Write-Host "İlerleme: $_" }
 $p.WaitForExit(180000) | Out-Null
 Get-ChildItem $Out | Format-Table Name, Length

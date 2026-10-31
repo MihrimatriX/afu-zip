@@ -44,6 +44,9 @@ public sealed class EntryItem(TreeItem item, bool showFullPath = false)
     public string MethodText => IsFolder ? item.Stats is { Files: > 0 } s ? $"{s.Files:N0} dosya" : "" : item.Method ?? "";
     public string ModifiedText => item.Modified?.LocalDateTime.ToString("g") ?? "";
     public string ToolTip => item.Path;
+
+    /// <summary>Ekran okuyucular ve UI Automation liste öğesini bu adla okur (yoksa sınıf adı okunur).</summary>
+    public override string ToString() => Name;
 }
 
 /// <summary>Breadcrumb'da bir parça: hangi seviyedeki (iç içe arşiv) hangi klasör.</summary>
