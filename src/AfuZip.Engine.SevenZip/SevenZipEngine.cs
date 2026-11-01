@@ -18,8 +18,12 @@ public sealed class SevenZipEngine(string? libraryPath = null) : IArchiveEngine
 
     public IReadOnlyList<SevenZipFormat> Formats => _library.Value?.Formats ?? [];
 
-    /// <summary>Yüklü 7z.dll Zstandard biliyor mu (7-Zip ZS). Ana 7-Zip'te yok; ZSTD presetleri LZMA2'ye düşer.</summary>
-    public bool HasZstd => _library.Value?.FindFormat("zstd") is not null;
+    /// <summary>
+    /// Yüklü 7z.dll Zstandard ile sıkıştırabiliyor mu (7-Zip ZS). Ana 7-Zip 24+ zstd'yi yalnızca açar; o durumda
+    /// ZSTD presetleri LZMA2'ye düşer ve tar.zst oluşturulamaz.
+    /// </summary>
+    public bool HasZstd => _library.Value is { } library &&
+                           (library.EncoderMethods.Contains("ZSTD") || library.FindFormat("zstd") is { CanUpdate: true });
 
     // 7-Zip bilinmeyen formatları da imza ve uzantıyla dener; bu yüzden Unknown dahil her formatı okur.
     public bool Supports(ArchiveFormat format, Capability needed)

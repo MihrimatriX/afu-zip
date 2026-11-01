@@ -38,7 +38,7 @@ internal static class Notifications
 
     public static void Show(string title, string message, string? revealPath = null, bool isError = false)
     {
-        if (!s_registered)
+        if (!s_registered || !SettingsStore.Current.Notifications)
             return;
         try
         {

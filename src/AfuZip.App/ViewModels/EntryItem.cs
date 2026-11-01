@@ -15,6 +15,7 @@ public sealed class EntryItem(TreeItem item, bool showFullPath = false)
     public TreeItem Item => item;
     public ArchiveEntry? Entry => item.Entry;
     public bool IsFolder => item.IsFolder;
+    public bool IsFile => !item.IsFolder;
     public string Path => item.Path;
     public string Name => showFullPath ? item.Path.TrimEnd('/') : item.Name;
     public bool IsArchive => item.Entry is { } e && NestedArchive.LooksLikeArchive(e);

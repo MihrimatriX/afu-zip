@@ -49,6 +49,8 @@ public sealed class MainViewModel : ObservableObject
             // İlerleme bildirimleri saniyede ~10 gelir; başlık yalnızca durum değişince güncellenir.
             if (e.PropertyName == nameof(ArchiveTask.State))
                 NotifyTasks();
+            else if (e.PropertyName == nameof(ArchiveTask.Percent))
+                OnPropertyChanged(nameof(TasksPercent));
         };
         NotifyTasks();
     }
@@ -57,21 +59,61 @@ public sealed class MainViewModel : ObservableObject
     public ObservableCollection<ArchiveTask> Tasks { get; } = [];
     public ObservableCollection<RecentItem> Recent { get; } = [];
 
+    public SevenZipEngine Engine => _sevenZip;
+
     public ArchiveTabViewModel? SelectedTab
     {
         get => _selectedTab;
-        set => SetProperty(ref _selectedTab, value);
+        set
+        {
+            var old = _selectedTab;
+            if (!SetProperty(ref _selectedTab, value))
+                return;
+            if (old is not null)
+                old.PropertyChanged -= OnSelectedTabChanged;
+            if (value is not null)
+                value.PropertyChanged += OnSelectedTabChanged;
+            OnPropertyChanged(nameof(CurrentStatus));
+            OnPropertyChanged(nameof(CurrentSummary));
+        }
     }
 
-    public string Status { get => _status; private set => SetProperty(ref _status, value); }
+    private void OnSelectedTabChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(ArchiveTabViewModel.Status))
+            OnPropertyChanged(nameof(CurrentStatus));
+        else if (e.PropertyName == nameof(ArchiveTabViewModel.Summary))
+            OnPropertyChanged(nameof(CurrentSummary));
+    }
+
+    public string Status
+    {
+        get => _status;
+        private set
+        {
+            if (SetProperty(ref _status, value))
+                OnPropertyChanged(nameof(CurrentStatus));
+        }
+    }
 
     public void SetStatus(string status) => Status = status;
+
+    /// <summary>Durum çubuğunun solu: seçili sekmenin durumu (seçim, arama sonucu) ya da genel durum.</summary>
+    public string CurrentStatus => _selectedTab is { Status.Length: > 0 } tab ? tab.Status : Status;
+
+    /// <summary>Durum çubuğunun ortası: seçili arşivin tek satırlık özeti.</summary>
+    public string CurrentSummary => _selectedTab?.Summary ?? "";
     public bool IsBusy { get => _isBusy; private set => SetProperty(ref _isBusy, value); }
 
     public bool HasTabs => Tabs.Count > 0;
     public bool IsWelcomeVisible => Tabs.Count == 0;
     public bool HasRecent => Recent.Count > 0;
+    public bool HasNoRecent => Recent.Count == 0;
     public bool HasTasks => Tasks.Count > 0;
+    public bool HasActiveTasks => Tasks.Any(t => t.IsActive);
+
+    /// <summary>Etkin görevlerin ortalama ilerlemesi (durum çubuğundaki küçük çubuk).</summary>
+    public double TasksPercent => Tasks.Where(t => t.IsActive).Select(t => t.Percent).DefaultIfEmpty(0).Average();
     public string TasksHeader => _queue.ActiveCount is var active and > 0 ? $"Görevler · {active} etkin" : "Görevler";
 
     /// <summary>Arşiv zaten açıksa o sekmeye geçer; değilse yeni sekmede açar.</summary>
@@ -136,8 +178,18 @@ public sealed class MainViewModel : ObservableObject
 
     // --- Oluşturma ---------------------------------------------------------------------------------
 
-    public CreateArchiveViewModel NewCreateArchive(IEnumerable<string> sources) =>
-        new(sources, _sevenZip.IsAvailable, _sevenZip.HasZstd);
+    /// <summary>Oluşturma diyaloğu ayarlardaki varsayılan hazır ayarla ve "bitince aç" tercihiyle açılır.</summary>
+    public CreateArchiveViewModel NewCreateArchive(IEnumerable<string> sources)
+    {
+        var viewModel = new CreateArchiveViewModel(sources, _sevenZip.IsAvailable, _sevenZip.HasZstd);
+        var settings = SettingsStore.Current;
+        var preferred = viewModel.Presets.ToList()
+            .FindIndex(p => p.IsAvailable && string.Equals(p.Preset.Id, settings.DefaultPreset, StringComparison.OrdinalIgnoreCase));
+        if (preferred >= 0 && preferred != viewModel.SelectedPresetIndex)
+            viewModel.SelectedPresetIndex = preferred;
+        viewModel.OpenWhenDone = settings.OpenArchiveWhenCreated;
+        return viewModel;
+    }
 
     /// <summary>Arşivi görev kuyruğunda oluşturur; istenirse bitince yeni sekmede açar.</summary>
     public ArchiveTask CreateArchive(CreateRequest request, bool openWhenDone)
@@ -193,6 +245,7 @@ public sealed class MainViewModel : ObservableObject
         foreach (var item in _recent.Add(path))
             Recent.Add(item);
         OnPropertyChanged(nameof(HasRecent));
+        OnPropertyChanged(nameof(HasNoRecent));
     }
 
     private void NotifyTabs()
@@ -204,6 +257,8 @@ public sealed class MainViewModel : ObservableObject
     private void NotifyTasks()
     {
         OnPropertyChanged(nameof(HasTasks));
+        OnPropertyChanged(nameof(HasActiveTasks));
+        OnPropertyChanged(nameof(TasksPercent));
         OnPropertyChanged(nameof(TasksHeader));
     }
 }

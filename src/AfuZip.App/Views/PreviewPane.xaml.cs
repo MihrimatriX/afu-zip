@@ -23,6 +23,13 @@ public sealed partial class PreviewPane : UserControl
         ViewModel = viewModel;
         InitializeComponent();
 
+        // Panel boyutu değişince (ayraç, pencere) "sığdır" kipindeki resim yeniden sığdırılır.
+        ImageScroller.SizeChanged += (_, _) =>
+        {
+            if (_fitted && ViewModel.IsImageVisible)
+                ImageScroller.ChangeView(0, 0, FitZoom(), disableAnimation: true);
+        };
+
         Loaded += (_, _) =>
         {
             if (!_subscribed)
@@ -111,10 +118,27 @@ public sealed partial class PreviewPane : UserControl
     private void OnImageOpened(object sender, RoutedEventArgs e)
     {
         _fitted = true;
-        // Resim, kaydırıcı görünür olmadan atanır; boyutlar yerleşimden sonra kesinleşir.
-        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
-            () => ImageScroller.ChangeView(0, 0, FitZoom(), disableAnimation: true));
+        if (CanFit)
+        {
+            ImageScroller.ChangeView(0, 0, FitZoom(), disableAnimation: true);
+            return;
+        }
+
+        // Resim, kaydırıcı görünür olmadan yüklenebilir: o anda görüntü alanı 0 olduğundan sığdırma %100'de
+        // kalıyordu. İlk gerçek yerleşimi bekleyip öyle sığdırılır.
+        void OnLayout(object? s, object args)
+        {
+            if (!CanFit)
+                return;
+            ImageScroller.LayoutUpdated -= OnLayout;
+            if (_fitted)
+                ImageScroller.ChangeView(0, 0, FitZoom(), disableAnimation: true);
+        }
+        ImageScroller.LayoutUpdated += OnLayout;
     }
+
+    private bool CanFit => ImageScroller.ViewportWidth > 0 && ImageScroller.ViewportHeight > 0 &&
+        PreviewImage.Source is BitmapImage { PixelWidth: > 0 };
 
     private void OnImageDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
     {

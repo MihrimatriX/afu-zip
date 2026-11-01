@@ -9,7 +9,38 @@
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
             </ResourceDictionary.MergedDictionaries>
 
+            <!--
+                Gezgin düzeni: seçili sekme ile komut şeridi aynı renk (ChromeBrush = TabView'ın seçili sekme rengi),
+                dosya listesi bir ton farklı (BodyBrush). Pencerenin geri kalanı Mica.
+            -->
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <StaticResource x:Key="ChromeBrush" ResourceKey="SolidBackgroundFillColorTertiaryBrush" />
+                    <SolidColorBrush x:Key="BodyBrush" Color="#FFFFFF" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <StaticResource x:Key="ChromeBrush" ResourceKey="SolidBackgroundFillColorTertiaryBrush" />
+                    <SolidColorBrush x:Key="BodyBrush" Color="#1C1C1C" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="HighContrast">
+                    <StaticResource x:Key="ChromeBrush" ResourceKey="SystemColorWindowColorBrush" />
+                    <StaticResource x:Key="BodyBrush" ResourceKey="SystemColorWindowColorBrush" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+
             <FontFamily x:Key="MonoFont">Cascadia Mono, Consolas</FontFamily>
+
+            <!-- Sıkışık liste satırı (Gezgin "Sıkıştırılmış görünüm" gibi) ve rahat satır -->
+            <Style x:Key="CompactRowStyle" TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+                <Setter Property="MinHeight" Value="28" />
+                <Setter Property="Padding" Value="10,0,8,0" />
+                <Setter Property="Margin" Value="4,1" />
+            </Style>
+            <Style x:Key="ComfortRowStyle" TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+                <Setter Property="MinHeight" Value="36" />
+                <Setter Property="Padding" Value="10,0,8,0" />
+                <Setter Property="Margin" Value="4,2" />
+            </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

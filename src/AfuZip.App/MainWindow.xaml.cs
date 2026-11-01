@@ -7,14 +7,23 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media.Imaging;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;
 using Windows.Storage.Pickers;
+using Windows.System;
 
 namespace AfuZip.App;
 
+/// <summary>
+/// Sekme şeridi başlık çubuğunda; sekmelerin görünümleri TabView'ın dışında, <c>ViewHost</c>'ta tutulur
+/// (sekme değişince önizleme ve kaydırma konumu kaybolmasın). Hiç sekme yokken başlangıç ekranı görünür.
+/// </summary>
 public sealed partial class MainWindow : Window
 {
+    private const string SettingsTag = "settings";
+
+    private readonly Dictionary<object, FrameworkElement> _views = [];
     private bool _syncingSelection;
 
     public MainWindow(MainViewModel viewModel)
@@ -23,17 +32,24 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
 
         ExtendsContentIntoTitleBar = true;
-        SetTitleBar(AppTitleBar);
+        SetTitleBar(DragRegion);
+        AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
         AppIcon.Apply(AppWindow);
         if (AppIcon.PngPath is { } png)
         {
-            TitleIcon.Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri(png));
-            WelcomeIcon.Source = TitleIcon.Source;
+            TitleIcon.Source = new BitmapImage(new Uri(png));
+            HomeIcon.Source = TitleIcon.Source;
         }
-        AppWindow.Resize(new Windows.Graphics.SizeInt32(1400, 860));
+        AppWindow.Resize(new Windows.Graphics.SizeInt32(1280, 820));
         ShellSuggestion.IsOpen = !ShellIntegration.IsRegistered;
+        EngineWarning.IsOpen = !ViewModel.Engine.IsAvailable;
+        Root.KeyboardAccelerators.Add(Accelerator(VirtualKeyModifiers.Control, (VirtualKey)188, OpenSettings)); // Ctrl+,
 
-        // Sekme içerikleri kodda oluşturulur: her TabViewItem kendi ArchiveView'ını taşır.
+        WindowTheme.Apply(this);
+        SettingsStore.Changed += OnSettingsChanged;
+        Root.Loaded += (_, _) => ReserveCaptionButtons();
+        Root.SizeChanged += (_, _) => ReserveCaptionButtons();
+
         ViewModel.Tabs.CollectionChanged += OnTabsChanged;
         ViewModel.PropertyChanged += (_, e) =>
         {
@@ -42,9 +58,13 @@ public sealed partial class MainWindow : Window
         };
         Closed += async (_, _) =>
         {
+            SettingsStore.Changed -= OnSettingsChanged;
             ViewModel.Tabs.CollectionChanged -= OnTabsChanged;
+            foreach (var view in _views.Values.OfType<ArchiveView>())
+                view.Close();
             await ViewModel.CloseAllAsync();
         };
+        ShowView(null);
     }
 
     public MainViewModel ViewModel { get; }
@@ -58,21 +78,23 @@ public sealed partial class MainWindow : Window
         Activate();
     }
 
-    // --- Sekmeler --------------------------------------------------------------------------------
+    private void OnSettingsChanged() => WindowTheme.Apply(this);
+
+    /// <summary>Simge durumuna küçült / kapat düğmeleri sekmelerin üstüne binmesin.</summary>
+    private void ReserveCaptionButtons()
+    {
+        var scale = Root.XamlRoot?.RasterizationScale ?? 1;
+        TitleArea.Padding = new Thickness(0, 0, AppWindow.TitleBar.RightInset / scale, 0);
+    }
+
+    // --- Sekmeler ve görünümler ------------------------------------------------------------------
 
     private void OnTabsChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         if (e.OldItems is not null)
         {
             foreach (ArchiveTabViewModel tab in e.OldItems)
-            {
-                var item = Tabs.TabItems.OfType<TabViewItem>().FirstOrDefault(t => t.Tag == tab);
-                if (item is not null)
-                {
-                    (item.Content as ArchiveView)?.Close();
-                    Tabs.TabItems.Remove(item);
-                }
-            }
+                RemoveTab(tab);
         }
 
         if (e.NewItems is not null)
@@ -84,23 +106,62 @@ public sealed partial class MainWindow : Window
                     Tag = tab,
                     Header = tab.Title,
                     IconSource = new FontIconSource { Glyph = "" },
-                    Content = new ArchiveView(tab, () => Handle) { Margin = new Thickness(0, 8, 0, 8) },
                 };
                 ToolTipService.SetToolTip(item, tab.ArchivePath);
+                AddView(tab, new ArchiveView(tab, () => Handle));
                 Tabs.TabItems.Add(item);
             }
         }
 
         if (e.Action == NotifyCollectionChangedAction.Reset)
-            Tabs.TabItems.Clear();
+        {
+            foreach (var item in Tabs.TabItems.OfType<TabViewItem>().Where(t => t.Tag is ArchiveTabViewModel).ToList())
+                RemoveTab((ArchiveTabViewModel)item.Tag);
+        }
 
         SyncSelectedTab();
     }
 
+    private void AddView(object key, FrameworkElement view)
+    {
+        view.Visibility = Visibility.Collapsed;
+        _views[key] = view;
+        ViewHost.Children.Insert(ViewHost.Children.Count - 1, view); // meşgul çubuğu en üstte kalsın
+    }
+
+    private void RemoveTab(object key)
+    {
+        if (Tabs.TabItems.OfType<TabViewItem>().FirstOrDefault(t => Equals(t.Tag, key)) is { } item)
+            Tabs.TabItems.Remove(item);
+        if (_views.Remove(key, out var view))
+        {
+            (view as ArchiveView)?.Close();
+            ViewHost.Children.Remove(view);
+        }
+        if (Tabs.TabItems.Count == 0)
+            ShowView(null);
+    }
+
+    private void ShowView(object? key)
+    {
+        foreach (var (viewKey, view) in _views)
+            view.Visibility = Equals(viewKey, key) ? Visibility.Visible : Visibility.Collapsed;
+        Home.Visibility = key is null ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     private void SyncSelectedTab()
     {
-        var item = Tabs.TabItems.OfType<TabViewItem>().FirstOrDefault(t => t.Tag == ViewModel.SelectedTab);
-        if (item is null || ReferenceEquals(Tabs.SelectedItem, item))
+        if (ViewModel.SelectedTab is not { } selected)
+        {
+            if (Tabs.TabItems.Count == 0)
+                ShowView(null);
+            return;
+        }
+        var item = Tabs.TabItems.OfType<TabViewItem>().FirstOrDefault(t => t.Tag == selected);
+        if (item is null)
+            return;
+        ShowView(selected);
+        if (ReferenceEquals(Tabs.SelectedItem, item))
             return;
         _syncingSelection = true;
         Tabs.SelectedItem = item;
@@ -109,14 +170,37 @@ public sealed partial class MainWindow : Window
 
     private void OnTabSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (!_syncingSelection && Tabs.SelectedItem is TabViewItem { Tag: ArchiveTabViewModel tab })
-            ViewModel.SelectedTab = tab;
+        if (_syncingSelection)
+            return;
+        switch (Tabs.SelectedItem)
+        {
+            case TabViewItem { Tag: ArchiveTabViewModel tab }:
+                ViewModel.SelectedTab = tab;
+                ShowView(tab);
+                break;
+            case TabViewItem { Tag: SettingsTag }:
+                ViewModel.SelectedTab = null;
+                ShowView(SettingsTag);
+                break;
+            default:
+                ShowView(null);
+                break;
+        }
     }
 
-    private async void OnTabCloseRequested(TabView sender, TabViewTabCloseRequestedEventArgs args)
+    private async void OnTabCloseRequested(TabView sender, TabViewTabCloseRequestedEventArgs args) => await CloseTabAsync(args.Tab);
+
+    private async Task CloseTabAsync(TabViewItem? item)
     {
-        if (args.Tab.Tag is ArchiveTabViewModel tab)
-            await ViewModel.CloseTabAsync(tab);
+        switch (item?.Tag)
+        {
+            case ArchiveTabViewModel tab:
+                await ViewModel.CloseTabAsync(tab);
+                break;
+            case SettingsTag:
+                RemoveTab(SettingsTag);
+                break;
+        }
     }
 
     private async void OnAddTabClick(TabView sender, object args) => await PickAndOpenAsync();
@@ -124,8 +208,34 @@ public sealed partial class MainWindow : Window
     private async void OnCloseTabAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
         args.Handled = true;
-        if (ViewModel.SelectedTab is { } tab)
-            await ViewModel.CloseTabAsync(tab);
+        await CloseTabAsync(Tabs.SelectedItem as TabViewItem);
+    }
+
+    // --- Ayarlar -----------------------------------------------------------------------------------
+
+    private void OnSettingsClick(object sender, RoutedEventArgs e) => OpenSettings();
+
+    /// <summary>Ayarlar bir sekmede açılır (Windows Terminal gibi); zaten açıksa ona geçilir.</summary>
+    public void OpenSettings()
+    {
+        if (Tabs.TabItems.OfType<TabViewItem>().FirstOrDefault(t => Equals(t.Tag, SettingsTag)) is not { } item)
+        {
+            item = new TabViewItem { Tag = SettingsTag, Header = "Ayarlar", IconSource = new FontIconSource { Glyph = "" } };
+            AddView(SettingsTag, new SettingsView(ViewModel.Engine));
+            Tabs.TabItems.Add(item);
+        }
+        Tabs.SelectedItem = item;
+    }
+
+    private static KeyboardAccelerator Accelerator(VirtualKeyModifiers modifiers, VirtualKey key, Action action)
+    {
+        var accelerator = new KeyboardAccelerator { Modifiers = modifiers, Key = key };
+        accelerator.Invoked += (_, e) =>
+        {
+            e.Handled = true;
+            action();
+        };
+        return accelerator;
     }
 
     // --- Açma ------------------------------------------------------------------------------------
@@ -231,41 +341,19 @@ public sealed partial class MainWindow : Window
 
     // --- Windows ile bütünleşme ------------------------------------------------------------------
 
-    private void OnSettingsOpening(object? sender, object e)
-    {
-        ShellToggle.Toggled -= OnShellToggled;
-        ShellToggle.IsOn = ShellIntegration.IsRegistered;
-        ShellToggle.Toggled += OnShellToggled;
-    }
-
-    private void OnShellToggled(object sender, RoutedEventArgs e) => SetShellIntegration(ShellToggle.IsOn);
-
-    private void OnSuggestionRegister(object sender, RoutedEventArgs e) => SetShellIntegration(true);
-
-    private void SetShellIntegration(bool enabled)
+    private void OnSuggestionRegister(object sender, RoutedEventArgs e)
     {
         try
         {
-            if (enabled)
-                ShellIntegration.Register();
-            else
-                ShellIntegration.Unregister();
+            ShellIntegration.Register();
             ShellSuggestion.IsOpen = false;
-            ViewModel.SetStatus(enabled
-                ? "Explorer'a eklendi: arşivlere ve dosyalara sağ tıklayın (Windows 11'de \"Daha fazla seçenek göster\")."
-                : "Explorer sağ tık menüsünden kaldırıldı.");
+            ViewModel.SetStatus("Explorer'a eklendi: arşivlere ve dosyalara sağ tıklayın (Windows 11'de \"Daha fazla seçenek göster\").");
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or System.Security.SecurityException)
         {
+            AppLog.Error("Kabuk kaydı", ex);
             ViewModel.SetStatus($"Kayıt defterine yazılamadı: {ex.Message}");
         }
-    }
-
-    private async void OnOpenDefaultApps(object sender, RoutedEventArgs e)
-    {
-        if (!ShellIntegration.IsRegistered)
-            SetShellIntegration(true);
-        await Windows.System.Launcher.LaunchUriAsync(new Uri("ms-settings:defaultapps?registeredAppUser=AFU%20Zip"));
     }
 
     // --- Görevler --------------------------------------------------------------------------------

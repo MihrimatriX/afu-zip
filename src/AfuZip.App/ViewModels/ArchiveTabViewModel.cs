@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using AfuZip.App.Services;
 using AfuZip.Core;
 using AfuZip.Core.Preview;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -34,10 +35,11 @@ public sealed class ArchiveTabViewModel(ArchiveOpener opener, TaskQueue tasks, I
     private IReadOnlyList<EntryItem> _selection = [];
 
     private string _archiveInfo = "";
+    private string _summary = "";
     private string _status = "";
     private string _searchText = "";
     private bool _isBusy;
-    private bool _isPreviewVisible = true;
+    private bool _isPreviewVisible = SettingsStore.Current.Preview != PreviewPlacement.Hidden;
 
     public string ArchivePath { get; private set; } = "";
     public string Title => Path.GetFileName(ArchivePath);
@@ -47,6 +49,9 @@ public sealed class ArchiveTabViewModel(ArchiveOpener opener, TaskQueue tasks, I
     public ObservableCollection<FolderNodeViewModel> FolderRoots { get; } = [];
 
     public string ArchiveInfo { get => _archiveInfo; private set => SetProperty(ref _archiveInfo, value); }
+
+    /// <summary>Durum çubuğu için tek satır: biçim, yöntem, solid, dosya sayısı, boyut ve oran.</summary>
+    public string Summary { get => _summary; private set => SetProperty(ref _summary, value); }
     public string Status { get => _status; private set => SetProperty(ref _status, value); }
     public bool IsBusy { get => _isBusy; private set => SetProperty(ref _isBusy, value); }
 
@@ -278,7 +283,10 @@ public sealed class ArchiveTabViewModel(ArchiveOpener opener, TaskQueue tasks, I
         if (!HasArchive)
             return null;
         var (indices, entries) = ResolveScope(scope);
-        var destination = SmartExtract.ResolveDestination(Current.Label, entries, Path.GetDirectoryName(ArchivePath)!);
+        var baseDirectory = Path.GetDirectoryName(ArchivePath)!;
+        var destination = SettingsStore.Current.ExtractHere == ExtractHereMode.AlwaysFolder
+            ? SmartExtract.FolderFor(Current.Label, baseDirectory)
+            : SmartExtract.ResolveDestination(Current.Label, entries, baseDirectory);
         return Extract(indices, destination);
     }
 
@@ -316,6 +324,9 @@ public sealed class ArchiveTabViewModel(ArchiveOpener opener, TaskQueue tasks, I
                     : [.. reader.Entries.Where(e => paths.Contains(e.Path)).Select(e => e.Index)];
                 return reader.ExtractAsync(current, options, progress, ct);
             }, ct);
+
+            if (result.Failed.Count == 0 && SettingsStore.Current.RevealAfterExtract && Directory.Exists(destination))
+                Notifications.Reveal(destination);
 
             var summary = $"{result} → {destination}";
             if (result.Blocked.Count > 0)
@@ -705,6 +716,7 @@ public sealed class ArchiveTabViewModel(ArchiveOpener opener, TaskQueue tasks, I
         _levels.Add(new Level(reader, label));
         NotifyEditState();
         ArchiveInfo = DescribeArchive(reader);
+        Summary = Summarize(reader);
         RebuildFolderTree();
         Navigate("");
     }
@@ -717,6 +729,7 @@ public sealed class ArchiveTabViewModel(ArchiveOpener opener, TaskQueue tasks, I
         await top.Reader.DisposeAsync();
         NotifyEditState();
         ArchiveInfo = DescribeArchive(Current.Reader);
+        Summary = Summarize(Current.Reader);
         RebuildFolderTree();
     }
 
@@ -773,6 +786,34 @@ public sealed class ArchiveTabViewModel(ArchiveOpener opener, TaskQueue tasks, I
     /// <summary>Durum satırına 7-Zip'in açılış uyarısını ekler (eksik cilt gibi sorunlar gözden kaçmasın).</summary>
     private static string WithWarnings(IArchiveReader reader, string status) =>
         reader.Warnings.Count == 0 ? status : $"{status} · ⚠ {reader.Warnings[0]}";
+
+    private static string Summarize(IArchiveReader reader)
+    {
+        var files = reader.Entries.Where(e => !e.IsDirectory).ToList();
+        var parts = new List<string> { reader.FormatName };
+        // En çok kullanılan yöntem (7z'de "LZMA2:24" gibi sözlük boyutu da gelir; özet için kısaltılmaz).
+        if (files.Where(f => !string.IsNullOrEmpty(f.Method)).GroupBy(f => f.Method).MaxBy(g => g.Count())?.Key is { } method)
+            parts.Add(method);
+        if (reader.IsSolid)
+            parts.Add("solid");
+        if (files.Any(f => f.IsEncrypted))
+            parts.Add("şifreli");
+        parts.Add($"{files.Count:N0} dosya");
+
+        var total = files.Sum(f => f.Size);
+        long? archiveSize = null;
+        try
+        {
+            archiveSize = new FileInfo(reader.ArchivePath).Length;
+        }
+        catch (IOException)
+        {
+        }
+        parts.Add(archiveSize is { } size && total > 0
+            ? $"{ByteSize.Format(total)} → {ByteSize.Format(size)} (%{100.0 * size / total:0})"
+            : ByteSize.Format(total));
+        return string.Join("  ·  ", parts);
+    }
 
     private static string DescribeArchive(IArchiveReader reader)
     {

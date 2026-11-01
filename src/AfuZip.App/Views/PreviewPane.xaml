@@ -13,19 +13,19 @@
         </Grid.RowDefinitions>
 
         <!-- Başlık: ad, tür · boyut · kodlama, kodlama seçici -->
-        <Grid Padding="14,10,10,10" ColumnSpacing="8" Visibility="{x:Bind ViewModel.HasHeader, Mode=OneWay}"
-              BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
+        <!-- Tek satır başlık (alt panelde yer kaplamasın): ad, tür ve boyut, kodlama seçici -->
+        <Grid Padding="12,0,6,0" MinHeight="34" ColumnSpacing="12" Visibility="{x:Bind ViewModel.HasHeader, Mode=OneWay}"
+              BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
             <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <StackPanel VerticalAlignment="Center">
-                <TextBlock Text="{x:Bind ViewModel.Title, Mode=OneWay}" Style="{StaticResource BodyStrongTextBlockStyle}"
-                           TextTrimming="CharacterEllipsis" IsTextSelectionEnabled="True" />
-                <TextBlock Text="{x:Bind ViewModel.Subtitle, Mode=OneWay}" Style="{StaticResource CaptionTextBlockStyle}"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
-            </StackPanel>
-            <ComboBox Grid.Column="1" VerticalAlignment="Center" MinWidth="120" MaxWidth="200"
+            <TextBlock Text="{x:Bind ViewModel.Title, Mode=OneWay}" Style="{StaticResource BodyStrongTextBlockStyle}" MaxWidth="420"
+                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis" IsTextSelectionEnabled="True" />
+            <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.Subtitle, Mode=OneWay}" Style="{StaticResource CaptionTextBlockStyle}"
+                       VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
+            <ComboBox Grid.Column="2" VerticalAlignment="Center" MinWidth="120" MaxWidth="200" Padding="10,3"
                       ItemsSource="{x:Bind ViewModel.Encodings}"
                       SelectedIndex="{x:Bind ViewModel.EncodingIndex, Mode=TwoWay}"
                       Visibility="{x:Bind ViewModel.CanChooseEncoding, Mode=OneWay}"

@@ -1,3 +1,5 @@
+using System.ComponentModel;
+using AfuZip.App.Services;
 using AfuZip.App.ViewModels;
 using AfuZip.Core;
 using Microsoft.UI.Xaml;
@@ -17,12 +19,18 @@ public sealed partial class ArchiveView : UserControl
     internal const string InternalDragFormat = "AfuZip.InternalDrag";
 
     private const double MinPreviewWidth = 260;
+    private const double MinPreviewHeight = 140;
     private const double MinListWidth = 360;
-
-    // Önizleme genişliği sekmeler arasında ortak: yeni sekme son kullanılan genişlikle açılır.
-    private static double s_previewWidth = 440;
+    private const double MinListHeight = 120;
+    private const double MinTreeWidth = 140;
+    private const double MaxTreeWidth = 480;
 
     private readonly Func<nint> _windowHandle;
+    private readonly PreviewPane _preview;
+    private PreviewPlacement _previewSetting = SettingsStore.Current.Preview;
+    private bool _previewRight;
+    private DependencyObject? _previewDefinition; // alttaysa satır, sağdaysa sütun tanımı
+    private bool _closed;
 
     public ArchiveView(ArchiveTabViewModel viewModel, Func<nint> windowHandle)
     {
@@ -31,16 +39,34 @@ public sealed partial class ArchiveView : UserControl
         InitializeComponent();
 
         PreviewHost.Child = _preview = new PreviewPane(viewModel.Preview);
-        PreviewHost.Width = s_previewWidth;
         PreviewSplitter.Dragged += OnPreviewSplitterDragged;
-        // Pencere küçülünce liste sütunu sıfıra inmesin.
-        SizeChanged += (_, _) => ClampPreviewWidth(PreviewHost.Width);
+        PreviewSplitter.DragCompleted += OnPreviewSplitterCompleted;
+        TreeSplitter.Dragged += OnTreeSplitterDragged;
+        TreeSplitter.DragCompleted += () => SettingsStore.Update(x => x.TreeWidth = TreeColumn.Width.Value, notify: false);
+
+        ViewModel.PropertyChanged += OnViewModelChanged;
+        SettingsStore.Changed += OnSettingsChanged;
+        // Gizli sekmedeyken başka sekmede değişen panel boyutları, sekmeye dönünce uygulanır.
+        RegisterPropertyChangedCallback(VisibilityProperty, (_, _) =>
+        {
+            if (Visibility == Visibility.Visible)
+                ApplyLayout();
+        });
+        // Pencere küçülünce liste sıfıra inmesin.
+        ContentArea.SizeChanged += (_, _) => ClampPreview();
+        ApplyLayout();
     }
 
-    private readonly PreviewPane _preview;
-
-    /// <summary>Sekme kapanırken: önizlemenin WebView2 sürecini bırak.</summary>
-    public void Close() => _preview.Close();
+    /// <summary>Sekme kapanırken: önizlemenin WebView2 sürecini bırak, ayar olaylarından çık.</summary>
+    public void Close()
+    {
+        if (_closed)
+            return;
+        _closed = true;
+        SettingsStore.Changed -= OnSettingsChanged;
+        ViewModel.PropertyChanged -= OnViewModelChanged;
+        _preview.Close();
+    }
 
     public ArchiveTabViewModel ViewModel { get; }
 
@@ -325,14 +351,153 @@ public sealed partial class ArchiveView : UserControl
             await AddWithConfirmationAsync(paths);
     }
 
-    private void OnPreviewSplitterDragged(double delta) => s_previewWidth = ClampPreviewWidth(PreviewHost.Width - delta);
+    // --- Yerleşim: ağaç, önizleme yeri ve boyutları, satır yüksekliği -----------------------------
 
-    /// <summary>Ağaç (240), liste ve üç sütun aralığı (3 × 8) için yer bırakır.</summary>
-    private double ClampPreviewWidth(double width)
+    private void OnViewModelChanged(object? sender, PropertyChangedEventArgs e)
     {
-        var max = Math.Max(MinPreviewWidth, ActualWidth - 240 - MinListWidth - 24);
-        return PreviewHost.Width = Math.Clamp(width, MinPreviewWidth, max);
+        if (e.PropertyName == nameof(ArchiveTabViewModel.IsPreviewVisible))
+            ApplyLayout();
     }
+
+    private void OnSettingsChanged()
+    {
+        var setting = SettingsStore.Current.Preview;
+        if (setting != _previewSetting)
+        {
+            // Ayarlardan "Gizli" seçildiyse açık sekmelerde de kapanır; gizliden alt/sağa geçince açılır.
+            if (setting == PreviewPlacement.Hidden || _previewSetting == PreviewPlacement.Hidden)
+                ViewModel.IsPreviewVisible = setting != PreviewPlacement.Hidden;
+            _previewSetting = setting;
+        }
+        ApplyLayout();
+    }
+
+    private void ApplyLayout()
+    {
+        if (_closed)
+            return;
+        var settings = SettingsStore.Current;
+
+        var tree = settings.ShowFolderTree;
+        TreeColumn.Width = new GridLength(tree ? Math.Clamp(settings.TreeWidth, MinTreeWidth, MaxTreeWidth) : 0);
+        FolderTree.Visibility = TreeSplitter.Visibility = tree ? Visibility.Visible : Visibility.Collapsed;
+
+        var rowStyle = (Style)Application.Current.Resources[settings.CompactRows ? "CompactRowStyle" : "ComfortRowStyle"];
+        if (!ReferenceEquals(EntriesList.ItemContainerStyle, rowStyle))
+            EntriesList.ItemContainerStyle = rowStyle;
+
+        // Önizleme "Gizli" iken düğmeyle açılırsa altta açılır.
+        _previewRight = settings.Preview == PreviewPlacement.Right;
+        var visible = ViewModel.IsPreviewVisible;
+        PreviewSplitter.Visibility = PreviewHost.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        PreviewSplitter.Vertical = !_previewRight;
+
+        ContentArea.RowDefinitions.Clear();
+        ContentArea.ColumnDefinitions.Clear();
+        var size = new GridLength(visible ? (_previewRight ? settings.PreviewWidth : settings.PreviewHeight) : 0);
+        if (_previewRight)
+        {
+            ContentArea.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            ContentArea.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var column = new ColumnDefinition { Width = size };
+            ContentArea.ColumnDefinitions.Add(column);
+            _previewDefinition = column;
+        }
+        else
+        {
+            ContentArea.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            ContentArea.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            var row = new RowDefinition { Height = size };
+            ContentArea.RowDefinitions.Add(row);
+            _previewDefinition = row;
+        }
+        Place(ListPane, 0);
+        Place(PreviewSplitter, 1);
+        Place(PreviewHost, 2);
+        ClampPreview();
+
+        void Place(FrameworkElement element, int index)
+        {
+            Grid.SetRow(element, _previewRight ? 0 : index);
+            Grid.SetColumn(element, _previewRight ? index : 0);
+        }
+    }
+
+    private double PreviewSize
+    {
+        get => _previewDefinition switch
+        {
+            RowDefinition row => row.Height.Value,
+            ColumnDefinition column => column.Width.Value,
+            _ => 0,
+        };
+        set
+        {
+            switch (_previewDefinition)
+            {
+                case RowDefinition row:
+                    row.Height = new GridLength(value);
+                    break;
+                case ColumnDefinition column:
+                    column.Width = new GridLength(value);
+                    break;
+            }
+        }
+    }
+
+    private void OnPreviewSplitterDragged(double delta) => PreviewSize = ClampPreviewSize(PreviewSize - delta);
+
+    private void OnPreviewSplitterCompleted()
+    {
+        var size = PreviewSize;
+        if (_previewRight)
+            SettingsStore.Update(x => x.PreviewWidth = size, notify: false);
+        else
+            SettingsStore.Update(x => x.PreviewHeight = size, notify: false);
+    }
+
+    private void ClampPreview()
+    {
+        if (ViewModel.IsPreviewVisible && PreviewSize > 0)
+            PreviewSize = ClampPreviewSize(PreviewSize);
+    }
+
+    /// <summary>Liste için en az 360 px genişlik / 120 px yükseklik bırakır.</summary>
+    private double ClampPreviewSize(double size)
+    {
+        var (min, available, minList) = _previewRight
+            ? (MinPreviewWidth, ContentArea.ActualWidth, MinListWidth)
+            : (MinPreviewHeight, ContentArea.ActualHeight, MinListHeight);
+        if (available <= 0)
+            return Math.Max(min, size); // henüz yerleşmedi
+        return Math.Clamp(size, min, Math.Max(min, available - minList - 6));
+    }
+
+    private void OnTreeSplitterDragged(double delta) =>
+        TreeColumn.Width = new GridLength(Math.Clamp(TreeColumn.Width.Value + delta, MinTreeWidth, MaxTreeWidth));
+
+    private void OnViewMenuOpening(object? sender, object e)
+    {
+        var settings = SettingsStore.Current;
+        PreviewBottomItem.IsChecked = settings.Preview != PreviewPlacement.Right;
+        PreviewRightItem.IsChecked = settings.Preview == PreviewPlacement.Right;
+        TreeMenuItem.IsChecked = settings.ShowFolderTree;
+        CompactMenuItem.IsChecked = settings.CompactRows;
+    }
+
+    private void OnPreviewBottom(object sender, RoutedEventArgs e) => PlacePreview(PreviewPlacement.Bottom);
+
+    private void OnPreviewRight(object sender, RoutedEventArgs e) => PlacePreview(PreviewPlacement.Right);
+
+    private void PlacePreview(PreviewPlacement placement)
+    {
+        ViewModel.IsPreviewVisible = true;
+        SettingsStore.Update(x => x.Preview = placement);
+    }
+
+    private void OnToggleTree(object sender, RoutedEventArgs e) => SettingsStore.Update(x => x.ShowFolderTree = TreeMenuItem.IsChecked);
+
+    private void OnToggleCompact(object sender, RoutedEventArgs e) => SettingsStore.Update(x => x.CompactRows = CompactMenuItem.IsChecked);
 
     // --- Klavye kısayolları ----------------------------------------------------------------------
 
@@ -340,7 +505,12 @@ public sealed partial class ArchiveView : UserControl
     {
         args.Handled = true;
         SearchBox.Focus(FocusState.Keyboard);
-        SearchBox.SelectAll();
+    }
+
+    private void OnSearchTextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
+    {
+        if (args.Reason != AutoSuggestionBoxTextChangeReason.SuggestionChosen)
+            ViewModel.SearchText = sender.Text;
     }
 
     private void OnExtractHereAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)

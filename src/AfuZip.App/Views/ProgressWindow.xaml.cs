@@ -32,6 +32,7 @@ public sealed partial class ProgressWindow : Window
         AppIcon.Apply(AppWindow);
         if (AppIcon.PngPath is { } png)
             TitleIcon.Source = new BitmapImage(new Uri(png));
+        WindowTheme.Apply(this);
 
         AppWindow.Closing += OnClosing;
         Resize();
