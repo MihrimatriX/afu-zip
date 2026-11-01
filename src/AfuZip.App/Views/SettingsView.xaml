@@ -61,19 +61,6 @@
             </Grid>
             <Grid Style="{StaticResource Card}">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                <FontIcon Glyph="&#xE8A1;" Style="{StaticResource CardIcon}" />
-                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                    <TextBlock Text="Önizleme paneli" Style="{StaticResource CardTitle}" />
-                    <TextBlock Text="Seçilen dosya listenin altında veya yanında gösterilir (Alt+P ile açılıp kapanır)." Style="{StaticResource CardText}" />
-                </StackPanel>
-                <ComboBox x:Name="PreviewBox" Grid.Column="2" Style="{StaticResource Choice}">
-                    <x:String>Altta</x:String>
-                    <x:String>Sağda</x:String>
-                    <x:String>Kapalı</x:String>
-                </ComboBox>
-            </Grid>
-            <Grid Style="{StaticResource Card}">
-                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                 <FontIcon Glyph="&#xE8B7;" Style="{StaticResource CardIcon}" />
                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
                     <TextBlock Text="Klasör ağacı" Style="{StaticResource CardTitle}" />

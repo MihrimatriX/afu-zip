@@ -241,7 +241,7 @@ public class SevenZipEngineTests
     }
 
     [Fact]
-    public async Task SolidBlock_IsCachedInOnePass()
+    public async Task SolidArchive_ReportsBlockAndOpensMiddleEntry()
     {
         RequireSevenZip();
         Assert.SkipUnless(File.Exists(SevenZipExe), "7z.exe bulunamadı.");
@@ -258,16 +258,9 @@ public class SevenZipEngineTests
         Assert.All(files, f => Assert.Equal(files[0].Block, f.Block));
         Assert.NotNull(files[0].Block);
 
-        using var cache = new AfuZip.Core.Preview.PreviewCache(directory: temp["önbellek"]);
-        using (var second = await cache.OpenAsync(reader, files[1], ct: Ct))
-        using (var stream = second.OpenRead())
-            Assert.Equal("iki", await new StreamReader(stream).ReadToEndAsync(Ct));
-
-        // Blok tek geçişte çözüldü: aynı bloktaki diğer dosyalar da önbellekte.
-        Assert.True(cache.Contains(reader, files[0].Index));
-        Assert.True(cache.Contains(reader, files[2].Index));
-        using var third = await cache.OpenAsync(reader, files[2], ct: Ct);
-        Assert.True(third.FromCache);
+        // Solid bloğun ortasındaki dosya: önceki dosyalar da çözülür ama yalnızca istenen döner.
+        await using var second = await reader.OpenEntryAsync(files[1].Index, Ct);
+        Assert.Equal("iki", await new StreamReader(second).ReadToEndAsync(Ct));
     }
 
     [Fact]

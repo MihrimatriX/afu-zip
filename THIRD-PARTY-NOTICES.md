@@ -23,16 +23,6 @@ AFU Zip'in kendi kodu [MIT lisansı](LICENSE) ile dağıtılır. Aşağıdaki bi
 | [System.IO.Hashing](https://github.com/dotnet/runtime) | MIT |
 | [System.CommandLine](https://github.com/dotnet/command-line-api) | MIT |
 
-### Önizleme web katmanı (WebView2 içinde)
-
-| Paket | Lisans |
-| --- | --- |
-| [Monaco Editor](https://github.com/microsoft/monaco-editor) | MIT |
-| [markdown-it](https://github.com/markdown-it/markdown-it) | MIT |
-| [DOMPurify](https://github.com/cure53/DOMPurify) | Apache 2.0 veya MPL 2.0 (seçimli); AFU Zip Apache 2.0'ı seçer |
-
-Microsoft Edge WebView2 Runtime, Windows 11 ile birlikte gelir ve uygulamayla dağıtılmaz.
-
 ## Yalnızca geliştirme ve test
 
 | Paket | Lisans |
@@ -40,7 +30,5 @@ Microsoft Edge WebView2 Runtime, Windows 11 ile birlikte gelir ve uygulamayla da
 | [xUnit.net v3](https://github.com/xunit/xunit) | Apache 2.0 |
 | [Microsoft.NET.Test.Sdk](https://github.com/microsoft/vstest) | MIT |
 | [Microsoft.Windows.SDK.BuildTools](https://www.nuget.org/packages/Microsoft.Windows.SDK.BuildTools) | Microsoft yazılım lisansı |
-| [TypeScript](https://github.com/microsoft/TypeScript) | Apache 2.0 |
-| [Vite](https://github.com/vitejs/vite) | MIT |
 
-Tam lisans metinleri her paketin kendi deposunda ve NuGet/npm paketinin içindedir.
+Tam lisans metinleri her paketin kendi deposunda ve NuGet paketinin içindedir.

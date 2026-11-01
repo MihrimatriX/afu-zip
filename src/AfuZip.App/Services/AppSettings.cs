@@ -10,13 +10,6 @@ public enum ThemeChoice
     Dark,
 }
 
-public enum PreviewPlacement
-{
-    Bottom,
-    Right,
-    Hidden,
-}
-
 public enum ExtractHereMode
 {
     /// <summary>Tek kök klasör varsa doğrudan, yoksa arşiv adıyla klasöre.</summary>
@@ -28,11 +21,8 @@ public enum ExtractHereMode
 public sealed class AppSettings
 {
     public ThemeChoice Theme { get; set; } = ThemeChoice.System;
-    public PreviewPlacement Preview { get; set; } = PreviewPlacement.Bottom;
     public bool ShowFolderTree { get; set; }
     public bool CompactRows { get; set; } = true;
-    public double PreviewHeight { get; set; } = 300;
-    public double PreviewWidth { get; set; } = 460;
     public double TreeWidth { get; set; } = 220;
     public string DefaultPreset { get; set; } = "balanced";
     public bool OpenArchiveWhenCreated { get; set; } = true;
@@ -62,7 +52,7 @@ public static class SettingsStore
 
     public static AppSettings Current { get; } = Load();
 
-    /// <summary>Görünümü etkileyen bir ayar değişti (tema, önizleme yeri, ağaç, satır yüksekliği).</summary>
+    /// <summary>Görünümü etkileyen bir ayar değişti (tema, ağaç, satır yüksekliği, sütunlar).</summary>
     public static event Action? Changed;
 
     /// <param name="notify">false: yalnızca kaydet (ör. ayraç sürüklenince panel boyu), pencereleri yeniden düzenleme.</param>

@@ -17,7 +17,7 @@ namespace AfuZip.App;
 
 /// <summary>
 /// Sekme şeridi başlık çubuğunda; sekmelerin görünümleri TabView'ın dışında, <c>ViewHost</c>'ta tutulur
-/// (sekme değişince önizleme ve kaydırma konumu kaybolmasın). Hiç sekme yokken başlangıç ekranı görünür.
+/// (sekme değişince kaydırma konumu ve seçim kaybolmasın). Hiç sekme yokken başlangıç ekranı görünür.
 /// </summary>
 public sealed partial class MainWindow : Window
 {

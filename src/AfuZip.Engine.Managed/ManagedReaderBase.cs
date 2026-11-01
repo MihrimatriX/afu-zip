@@ -5,8 +5,8 @@ namespace AfuZip.Engine.Managed;
 internal abstract class ManagedReaderBase(string archivePath, ArchiveFormat format, string formatName, IReadOnlyList<ArchiveEntry> entries)
     : IArchiveReader
 {
-    /// <summary>Bu boyutun altındaki girdiler önizleme için belleğe, üstündekiler geçici dosyaya açılır.</summary>
-    internal const long InMemoryPreviewLimit = 64L * 1024 * 1024;
+    /// <summary>Bu boyutun altındaki girdiler belleğe, üstündekiler geçici dosyaya açılır.</summary>
+    internal const long InMemoryLimit = 64L * 1024 * 1024;
 
     protected readonly SemaphoreSlim Gate = new(1, 1);
 
@@ -163,7 +163,7 @@ internal abstract class ManagedReaderBase(string archivePath, ArchiveFormat form
     }
 
     // Boyutu bilinmeyen (0 bildirilen) girdiler sınırsız büyüyebileceği için geçici dosyaya açılır.
-    private static Stream CreateBuffer(long size) => size is > 0 and <= InMemoryPreviewLimit
+    private static Stream CreateBuffer(long size) => size is > 0 and <= InMemoryLimit
         ? new MemoryStream((int)size)
         : new FileStream(Path.GetTempFileName(), FileMode.Create, FileAccess.ReadWrite, FileShare.None, 1 << 16, FileOptions.DeleteOnClose);
 

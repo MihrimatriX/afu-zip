@@ -1,5 +1,5 @@
 # AFU Zip'in gerçek ekran görüntülerini alır (CI'daki Windows makinesinde): karşılama, ayarlar, oluşturma diyaloğu,
-# önizlemeler ve sağ tık ilerleme penceresi. UI Automation ile tıklar, ekrandan yakalar.
+# arşiv sekmesi, menüler, koyu tema ve sağ tık ilerleme penceresi. UI Automation ile tıklar, ekrandan yakalar.
 param([Parameter(Mandatory)] [string] $Exe, [string] $Out = "screenshots", [string] $Work = "shotwork")
 $ErrorActionPreference = 'Stop'
 New-Item -ItemType Directory -Force $Out, $Work | Out-Null
@@ -103,6 +103,12 @@ public sealed class Oyuncu(string ad)
 '{ "oyun": "Neon Sokaklar", "surum": "0.9.1", "ayarlar": { "cozunurluk": [2560, 1440], "vsync": true, "ses": null }, "oyuncular": [ { "ad": "Ada", "seviye": 12 }, { "ad": "Kerem", "seviye": 7 } ] }' | Set-Content -Encoding utf8 "$src/kayit.json"
 Copy-Item docs/assets/og.png "$src/kapak.png"
 Copy-Item docs/assets/logo.svg "$src/assets/logo.svg"
+# Gerçekçi görünsün diye birkaç klasör ve dosya daha
+New-Item -ItemType Directory -Force "$src/src/Oyun", "$src/src/Arayuz", "$src/assets/dokular", "$src/docs" | Out-Null
+foreach ($n in 'Oyuncu', 'Dusman', 'Silah', 'Gorev', 'Kamera', 'Kayit') { Get-Content "$src/Oyuncu.cs" | Set-Content -Encoding utf8 "$src/src/Oyun/$n.cs" }
+foreach ($n in 'AnaMenu', 'Envanter', 'Harita') { Get-Content "$src/Oyuncu.cs" | Set-Content -Encoding utf8 "$src/src/Arayuz/$n.cs" }
+foreach ($n in 'sokak', 'neon', 'gokyuzu', 'zemin') { Copy-Item docs/assets/og.png "$src/assets/dokular/$n.png" }
+Get-Content "$src/README.md" | Set-Content -Encoding utf8 "$src/docs/TASARIM.md"
 $archive = Join-Path (Resolve-Path $Work) "proje.7z"
 Push-Location $src; & "C:\Program Files\7-Zip\7z.exe" a $archive * | Out-Null; Pop-Location
 
@@ -115,27 +121,24 @@ try { Click $h "Ayarlar"; Start-Sleep -Seconds 2; Shot $h "02-ayarlar"; Keys $h 
 try { Keys $h "^n"; Start-Sleep -Seconds 2; Shot $h "03-olustur"; Keys $h "{ESC}" } catch { Write-Host "Oluştur: $_" }
 $p.CloseMainWindow() | Out-Null; $p.WaitForExit(15000) | Out-Null
 
-# --- 4-7: arşiv ve önizlemeler -----------------------------------------------------------------
+# --- 4-7: arşiv, sağ tık, ⋯ menüsü, test bildirimi ----------------------------------------------
 $p = Start-Process -FilePath $Exe -ArgumentList "`"$archive`"" -PassThru
 $h = Wait-Window $p; Fit $h; Start-Sleep -Seconds 5
 Shot $h "04-arsiv"
-foreach ($item in @(@("README.md", "05-markdown"), @("Oyuncu.cs", "06-kod"), @("kayit.json", "07-json"), @("kapak.png", "08-resim"))) {
-  try { Select-Entry $h $item[0]; Start-Sleep -Seconds 4; Shot $h $item[1] } catch { Write-Host "$($item[0]): $_" }
-}
-# Sağ tık menüsü (klavyeden Shift+F10) ve ⋯ menüsü
-try { $el = Find $h "Oyuncu.cs"; (Act $el ([System.Windows.Automation.SelectionItemPattern]::Pattern)).Select(); $el.SetFocus(); Keys $h "+{F10}"; Start-Sleep -Seconds 1; Shot $h "12-sag-tik"; Keys $h "{ESC}" } catch { Write-Host "Sağ tık: $_" }
-try { Click $h "Diğer"; Start-Sleep -Seconds 1; Shot $h "13-menu"; Keys $h "{ESC}" } catch { Write-Host "Menü: $_" }
+# Sağ tık menüsü (klavyeden Shift+F10)
+try { $el = Find $h "Oyuncu.cs"; (Act $el ([System.Windows.Automation.SelectionItemPattern]::Pattern)).Select(); $el.SetFocus(); Keys $h "+{F10}"; Start-Sleep -Seconds 1; Shot $h "05-sag-tik"; Keys $h "{ESC}" } catch { Write-Host "Sağ tık: $_" }
+try { Click $h "Diğer"; Start-Sleep -Seconds 1; Shot $h "06-menu"; Keys $h "{ESC}" } catch { Write-Host "Menü: $_" }
+# Test bitince alttaki kısa bildirim
+try { Click $h "Test et"; Start-Sleep -Seconds 3; Shot $h "07-test" } catch { Write-Host "Test: $_" }
 $p.CloseMainWindow() | Out-Null; $p.WaitForExit(15000) | Out-Null
 
-# --- 10-11: koyu tema, önizleme sağda, klasör ağacı açık (ayar dosyası elle yazılır) ------------
+# --- 8: koyu tema, klasör ağacı ve tüm sütunlar açık (ayar dosyası elle yazılır) --------------------
 $settings = Join-Path $env:LOCALAPPDATA "AfuZip\settings.json"
 New-Item -ItemType Directory -Force (Split-Path $settings) | Out-Null
-'{ "Theme": "Dark", "Preview": "Right", "ShowFolderTree": true, "CompactRows": true }' | Set-Content -Encoding utf8 $settings
+'{ "Theme": "Dark", "ShowFolderTree": true, "ShowRatioColumn": true, "ShowMethodColumn": true, "ShowPackedColumn": true }' | Set-Content -Encoding utf8 $settings
 $p = Start-Process -FilePath $Exe -ArgumentList "`"$archive`"" -PassThru
 $h = Wait-Window $p; Fit $h; Start-Sleep -Seconds 5
-foreach ($item in @(@("kapak.png", "10-koyu-resim"), @("Oyuncu.cs", "11-koyu-kod"))) {
-  try { Select-Entry $h $item[0]; Start-Sleep -Seconds 4; Shot $h $item[1] } catch { Write-Host "$($item[0]): $_" }
-}
+try { Select-Entry $h "src"; Start-Sleep -Seconds 1; Shot $h "08-koyu" } catch { Write-Host "Koyu: $_"; Shot $h "08-koyu" }
 $p.CloseMainWindow() | Out-Null; $p.WaitForExit(15000) | Out-Null
 Remove-Item $settings -ErrorAction SilentlyContinue
 
