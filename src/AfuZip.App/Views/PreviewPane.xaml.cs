@@ -3,6 +3,7 @@ using AfuZip.App.ViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 
 namespace AfuZip.App.Views;
@@ -22,13 +23,6 @@ public sealed partial class PreviewPane : UserControl
     {
         ViewModel = viewModel;
         InitializeComponent();
-
-        // Panel boyutu değişince (ayraç, pencere) "sığdır" kipindeki resim yeniden sığdırılır.
-        ImageScroller.SizeChanged += (_, _) =>
-        {
-            if (_fitted && ViewModel.IsImageVisible)
-                ImageScroller.ChangeView(0, 0, FitZoom(), disableAnimation: true);
-        };
 
         Loaded += (_, _) =>
         {
@@ -51,11 +45,11 @@ public sealed partial class PreviewPane : UserControl
             }
         };
         ActualThemeChanged += (_, _) => _web?.SetTheme(ActualTheme == ElementTheme.Dark);
+        // Ayraç sürüklenince, pencere büyüyünce ya da panel ilk kez görünür olunca sığdırma yeniden hesaplanır.
         ImageScroller.SizeChanged += (_, _) =>
         {
-            // Ayraç sürüklenince veya pencere büyüyünce sığdırılmış resim yeniden sığdırılır.
-            if (_fitted && ViewModel.IsImageVisible)
-                ImageScroller.ChangeView(0, 0, FitZoom(), disableAnimation: true);
+            if (_fitted)
+                ApplyImageSize();
         };
     }
 
@@ -115,45 +109,43 @@ public sealed partial class PreviewPane : UserControl
 
     // --- Resim: açılışta sığdır, çift tıkla sığdır ↔ %100 ------------------------------------------
 
+    // Sığdırma ScrollViewer yakınlaştırmasıyla değil resmin boyutuyla yapılır: ChangeView, içerik ölçülmeden
+    // çağrılınca (resim yeni açıldı, panel henüz görünmüyor) sessizce yok sayılıyor ve resim %100'de kalıyordu.
     private void OnImageOpened(object sender, RoutedEventArgs e)
     {
         _fitted = true;
-        if (CanFit)
-        {
-            ImageScroller.ChangeView(0, 0, FitZoom(), disableAnimation: true);
-            return;
-        }
-
-        // Resim, kaydırıcı görünür olmadan yüklenebilir: o anda görüntü alanı 0 olduğundan sığdırma %100'de
-        // kalıyordu. İlk gerçek yerleşimi bekleyip öyle sığdırılır.
-        void OnLayout(object? s, object args)
-        {
-            if (!CanFit)
-                return;
-            ImageScroller.LayoutUpdated -= OnLayout;
-            if (_fitted)
-                ImageScroller.ChangeView(0, 0, FitZoom(), disableAnimation: true);
-        }
-        ImageScroller.LayoutUpdated += OnLayout;
+        ApplyImageSize();
     }
-
-    private bool CanFit => ImageScroller.ViewportWidth > 0 && ImageScroller.ViewportHeight > 0 &&
-        PreviewImage.Source is BitmapImage { PixelWidth: > 0 };
 
     private void OnImageDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
     {
         _fitted = !_fitted;
-        ImageScroller.ChangeView(0, 0, _fitted ? FitZoom() : 1f, disableAnimation: false);
+        ApplyImageSize();
     }
 
-    private float FitZoom()
+    private void ApplyImageSize()
     {
-        if (PreviewImage.Source is not BitmapImage { PixelWidth: > 0, PixelHeight: > 0 } bitmap ||
-            ImageScroller.ViewportWidth <= 0 || ImageScroller.ViewportHeight <= 0)
-            return 1f;
+        if (PreviewImage.Source is not BitmapImage { PixelWidth: > 0, PixelHeight: > 0 } bitmap)
+            return;
 
-        var scale = Math.Min(ImageScroller.ViewportWidth / bitmap.PixelWidth, ImageScroller.ViewportHeight / bitmap.PixelHeight);
-        // Küçük resimler büyütülmez (bulanıklaşır); yalnızca panele sığmayanlar küçültülür.
-        return (float)Math.Clamp(scale, ImageScroller.MinZoomFactor, 1.0);
+        if (_fitted)
+        {
+            var width = ImageScroller.ActualWidth;
+            var height = ImageScroller.ActualHeight;
+            if (width <= 0 || height <= 0)
+                return; // panel görünür olunca SizeChanged yeniden çağırır
+            // Küçük resimler büyütülmez (bulanıklaşır); yalnızca panele sığmayanlar küçültülür.
+            var scale = Math.Min(1.0, Math.Min((width - 2) / bitmap.PixelWidth, (height - 2) / bitmap.PixelHeight));
+            PreviewImage.Stretch = Stretch.Uniform;
+            PreviewImage.Width = Math.Max(1, bitmap.PixelWidth * scale);
+            PreviewImage.Height = Math.Max(1, bitmap.PixelHeight * scale);
+        }
+        else
+        {
+            PreviewImage.Stretch = Stretch.None;
+            PreviewImage.Width = double.NaN;
+            PreviewImage.Height = double.NaN;
+        }
+        ImageScroller.ChangeView(0, 0, 1f, disableAnimation: true);
     }
 }

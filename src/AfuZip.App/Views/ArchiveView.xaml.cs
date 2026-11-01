@@ -473,6 +473,58 @@ public sealed partial class ArchiveView : UserControl
         return Math.Clamp(size, min, Math.Max(min, available - minList - 6));
     }
 
+    // --- Sütunlar: dar listede öncelik sırasıyla gizlenir ------------------------------------------
+
+    // Boyut, sıkıştırılmış, oran, yöntem, değiştirilme (kenar boşluğu dahil genişlikler).
+    private static readonly double[] FullColumnWidths = [96, 96, 64, 132, 140];
+    // Yer daraldıkça kalanlar: önce boyut, sonra oran, tarih, yöntem; sıkıştırılmış boyut ilk gizlenen.
+    private static readonly int[] ColumnPriority = [0, 2, 4, 3, 1];
+    private const double MinNameWidth = 200;
+    private double[] _columnWidths = [.. FullColumnWidths];
+
+    private void OnListPaneSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        var available = e.NewSize.Width - HeaderGrid.Padding.Left - HeaderGrid.Padding.Right - MinNameWidth;
+        var widths = new double[FullColumnWidths.Length];
+        foreach (var column in ColumnPriority)
+        {
+            if (available < FullColumnWidths[column])
+                break;
+            widths[column] = FullColumnWidths[column];
+            available -= FullColumnWidths[column];
+        }
+        if (widths.SequenceEqual(_columnWidths))
+            return;
+
+        _columnWidths = widths;
+        ApplyColumns(HeaderGrid);
+        if (EntriesList.ItemsPanelRoot is { } panel)
+        {
+            foreach (var child in panel.Children)
+            {
+                if (child is ListViewItem { ContentTemplateRoot: Grid row })
+                    ApplyColumns(row);
+            }
+        }
+    }
+
+    private void OnContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
+    {
+        if (args.ItemContainer?.ContentTemplateRoot is Grid row)
+            ApplyColumns(row);
+    }
+
+    private void ApplyColumns(Grid grid)
+    {
+        if (grid.ColumnDefinitions.Count != _columnWidths.Length + 1)
+            return;
+        for (var i = 0; i < _columnWidths.Length; i++)
+        {
+            if (grid.ColumnDefinitions[i + 1].Width.Value != _columnWidths[i])
+                grid.ColumnDefinitions[i + 1].Width = new GridLength(_columnWidths[i]);
+        }
+    }
+
     private void OnTreeSplitterDragged(double delta) =>
         TreeColumn.Width = new GridLength(Math.Clamp(TreeColumn.Width.Value + delta, MinTreeWidth, MaxTreeWidth));
 
