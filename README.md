@@ -18,7 +18,7 @@
   <img src="https://img.shields.io/badge/lisans-MIT-green" alt="MIT">
 </p>
 
-> **Geliştirme önizlemesi (v0.4).** Kurulum gerektirmeyen paketler [Releases](https://github.com/MihrimatriX/afu-zip/releases)
+> **Geliştirme önizlemesi (v0.5).** Kurulum gerektirmeyen paketler [Releases](https://github.com/MihrimatriX/afu-zip/releases)
 > sayfasında: zip'i açıp `AfuZip.exe`'yi çalıştırın. Hata bulursanız [issue açın](https://github.com/MihrimatriX/afu-zip/issues).
 
 - **Her biçimi açar:** 7z, ZIP, RAR, TAR ve sıkıştırılmış türleri, ISO, CAB, WIM ve 7-Zip'in tanıdığı ~50 biçim; iç içe arşivler aynı sekmede.
@@ -89,11 +89,11 @@ Seçilen dosya diske yazılmadan açılır ve türü uzantıdan değil **içerik
 - **Büyük ve şifreli dosyalar** seçilince hemen açılmaz: 64 MB üstü ve parolalı girdiler için "Önizle" düğmesi çıkar.
 - **Güvenlik:** web katmanı sıkı CSP ile çalışır; arşivdeki HTML kod olarak gösterilir, Markdown'da ham HTML kapalıdır ve
   çıktı DOMPurify'dan geçer, uzak resimler (izleme pikselleri) yüklenmez, dış bağlantılar sistem tarayıcısında açılır.
-- **Panel genişliği** ayraçla değişir; Alt+P paneli açar/kapatır.
+- **Önizleme paneli** listenin altında ya da sağında (Görünüm menüsü veya Ayarlar); boyutu ayraçla değişir, Alt+P açar/kapatır.
 
 ## Oluşturma ve düzenleme (Faz 3)
 
-- **Arşiv oluştur** (Ctrl+N, sekme çubuğundaki "Oluştur" ya da arşiv olmayan dosyaları pencereye sürükleyin):
+- **Arşiv oluştur** (Ctrl+N, başlangıç ekranındaki "Arşiv oluştur" ya da arşiv olmayan dosyaları pencereye sürükleyin):
   kullanıcı codec değil **amaç** seçer.
 
   | Preset | Biçim | Ne zaman |
@@ -137,7 +137,8 @@ Uygulamada **Ayarlar → Explorer sağ tık menüsü** açılınca (yalnızca ge
 ## Arayüz (Faz 1)
 
 - **Sekmeler:** her arşiv ayrı sekmede; aynı arşiv ikinci kez açılırsa o sekmeye geçilir. Çoklu seçimle veya sürükleyerek birden fazla arşiv açılabilir.
-- **Üç panel:** solda klasör ağacı ve arşiv bilgisi, ortada sıralanabilir liste (klasör boyutları dahil), sağda metin/resim önizlemesi.
+- **Kompakt düzen:** sekmeler başlık çubuğunda, tek komut şeridi (Çıkar, Ekle, Sil, Test, konum çubuğu, arama), sıkışık ve sıralanabilir liste (klasör boyutları dahil). Klasör ağacı isteğe bağlı; dar pencerede ikincil sütunlar kendiliğinden gizlenir. Arşiv özeti (biçim, yöntem, solid, oran) durum çubuğunda, ayrıntısı ⓘ düğmesinde.
+- **Ayarlar sekmesi** (Ctrl+, ya da durum çubuğundaki Ayarlar): tema (sistem/açık/koyu, Mica ve sistem vurgu rengiyle), önizleme yeri, klasör ağacı, satır yüksekliği, varsayılan sıkıştırma amacı, "Buraya çıkar" kipi, bitince klasörü aç, Explorer kaydı, bildirimler, 7-Zip motoru bilgisi. `%LOCALAPPDATA%\AfuZip\settings.json` dosyasına yazılır.
 - **İç içe arşivler:** arşivdeki bir arşive çift tıklayınca aynı sekmede açılır; breadcrumb `dış.zip › iç.tar › klasör` biçiminde, her parça tıklanabilir.
 - **Arama:** arşivin tamamında, Türkçe büyük/küçük harf kurallarıyla.
 - **Çıkarma:** buraya akıllı çıkar, seçilenleri buraya çıkar, seçilenleri/tümünü klasöre çıkar. Seçili klasörlerin tüm içeriği dahil edilir.
@@ -155,6 +156,7 @@ Uygulamada **Ayarlar → Explorer sağ tık menüsü** açılınca (yalnızca ge
 | Del | Seçilenleri arşivden sil (liste odaktayken) |
 | F2 | Yeniden adlandır |
 | Ctrl+W | Sekmeyi kapat |
+| Ctrl+, | Ayarlar |
 | Ctrl+F | Arşivde ara |
 | Ctrl+E | Buraya akıllı çıkar (seçim varsa seçilenleri) |
 | Alt+P | Önizleme panelini aç/kapat (Explorer ile aynı) |
