@@ -35,7 +35,6 @@ public sealed partial class MainWindow : Window
 
         // Sekme içerikleri kodda oluşturulur: her TabViewItem kendi ArchiveView'ını taşır.
         ViewModel.Tabs.CollectionChanged += OnTabsChanged;
-        Tabs.SizeChanged += (_, _) => StretchTabContent();
         ViewModel.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(MainViewModel.SelectedTab))
@@ -83,9 +82,6 @@ public sealed partial class MainWindow : Window
                 var item = new TabViewItem
                 {
                     Tag = tab,
-                    // TabView içeriği sekmenin hizalamasını alır; varsayılanda içerik kendi yüksekliğine büzülüyordu.
-                    HorizontalContentAlignment = HorizontalAlignment.Stretch,
-                    VerticalContentAlignment = VerticalAlignment.Stretch,
                     Header = tab.Title,
                     IconSource = new FontIconSource { Glyph = "" },
                     Content = new ArchiveView(tab, () => Handle) { Margin = new Thickness(0, 8, 0, 8) },
@@ -99,33 +95,6 @@ public sealed partial class MainWindow : Window
             Tabs.TabItems.Clear();
 
         SyncSelectedTab();
-    }
-
-    /// <summary>
-    /// TabView içeriği bir ContentPresenter'da durur ve onun içerik hizalaması varsayılanda üst/sol: sekme içeriği
-    /// pencereyi doldurmak yerine kendi yüksekliğine büzülüyordu (Windows'ta alınan ekran görüntüsünde görüldü).
-    /// </summary>
-    private void StretchTabContent()
-    {
-        if (FindDescendant<ContentPresenter>(Tabs, "TabContentPresenter") is { } presenter)
-        {
-            presenter.HorizontalContentAlignment = HorizontalAlignment.Stretch;
-            presenter.VerticalContentAlignment = VerticalAlignment.Stretch;
-        }
-    }
-
-    private static T? FindDescendant<T>(DependencyObject root, string name) where T : FrameworkElement
-    {
-        var count = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(root);
-        for (var i = 0; i < count; i++)
-        {
-            var child = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(root, i);
-            if (child is T match && match.Name == name)
-                return match;
-            if (FindDescendant<T>(child, name) is { } deeper)
-                return deeper;
-        }
-        return null;
     }
 
     private void SyncSelectedTab()

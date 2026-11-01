@@ -36,7 +36,8 @@
         </Grid>
 
         <!-- Sekmeler: içerikleri kodda oluşturulur (MainWindow.xaml.cs) -->
-        <TabView x:Name="Tabs" Grid.Row="1" Padding="8,0"
+        <!-- TabView'ın varsayılan stili VerticalAlignment="Top": içerik pencereyi doldursun diye Stretch. -->
+        <TabView x:Name="Tabs" Grid.Row="1" Padding="8,0" VerticalAlignment="Stretch"
                  Visibility="{x:Bind ViewModel.HasTabs, Mode=OneWay}"
                  IsAddTabButtonVisible="True"
                  TabWidthMode="SizeToContent"
