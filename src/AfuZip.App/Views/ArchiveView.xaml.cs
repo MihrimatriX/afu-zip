@@ -198,7 +198,11 @@ public sealed partial class ArchiveView : UserControl
         if (args.TryGetPosition(EntriesList, out var point))
             _entryMenu.ShowAt(EntriesList, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions { Position = point });
         else if (EntriesList.ContainerFromItem(EntriesList.SelectedItem) is FrameworkElement container)
-            _entryMenu.ShowAt(container);
+            // Klavyeden (Shift+F10, menü tuşu): satırın sol altında, Gezgin gibi.
+            _entryMenu.ShowAt(container, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+            {
+                Position = new Windows.Foundation.Point(40, container.ActualHeight),
+            });
     }
 
     // --- Düzenleme -------------------------------------------------------------------------------
