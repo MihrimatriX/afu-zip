@@ -137,13 +137,14 @@ Uygulamada **Ayarlar → Explorer sağ tık menüsü** açılınca (yalnızca ge
 ## Arayüz (Faz 1)
 
 - **Sekmeler:** her arşiv ayrı sekmede; aynı arşiv ikinci kez açılırsa o sekmeye geçilir. Çoklu seçimle veya sürükleyerek birden fazla arşiv açılabilir.
-- **Kompakt düzen:** sekmeler başlık çubuğunda, tek komut şeridi (Çıkar, Ekle, Sil, Test, konum çubuğu, arama), sıkışık ve sıralanabilir liste (klasör boyutları dahil). Klasör ağacı isteğe bağlı; dar pencerede ikincil sütunlar kendiliğinden gizlenir. Arşiv özeti (biçim, yöntem, solid, oran) durum çubuğunda, ayrıntısı ⓘ düğmesinde.
-- **Ayarlar sekmesi** (Ctrl+, ya da durum çubuğundaki Ayarlar): tema (sistem/açık/koyu, Mica ve sistem vurgu rengiyle), önizleme yeri, klasör ağacı, satır yüksekliği, varsayılan sıkıştırma amacı, "Buraya çıkar" kipi, bitince klasörü aç, Explorer kaydı, bildirimler, 7-Zip motoru bilgisi. `%LOCALAPPDATA%\AfuZip\settings.json` dosyasına yazılır.
+- **Sade düzen:** sekmeler, görevler ve ayarlar başlık çubuğunda; altında tek satır: simge komutlar (Çıkar, Ekle, Sil, Test), konum, arama (Ctrl+F ile açılır), önizleme ve ⋯ menüsü. Liste varsayılan olarak ad, boyut ve tarih gösterir; oran, yöntem ve sıkıştırılmış boyut ⋯ → Sütunlar'dan açılır, dar pencerede kendiliğinden gizlenir. Klasör ağacı isteğe bağlı. Yeniden adlandırma ve seçime göre çıkarma sağ tık menüsünde.
+- **Durum çubuğu yok:** hatalar ve biten işler pencerenin altında birkaç saniyelik bildirimle, arşiv özeti ⋯ → Arşiv bilgisi'nde.
+- **Ayarlar sekmesi** (Ctrl+, ya da başlık çubuğundaki dişli): tema (sistem/açık/koyu, Mica ve sistem vurgu rengiyle), önizleme yeri, klasör ağacı, satır yüksekliği, varsayılan sıkıştırma amacı, "Buraya çıkar" kipi, bitince klasörü aç, Explorer kaydı, bildirimler, 7-Zip motoru bilgisi. `%LOCALAPPDATA%\AfuZip\settings.json` dosyasına yazılır.
 - **İç içe arşivler:** arşivdeki bir arşive çift tıklayınca aynı sekmede açılır; breadcrumb `dış.zip › iç.tar › klasör` biçiminde, her parça tıklanabilir.
 - **Arama:** arşivin tamamında, Türkçe büyük/küçük harf kurallarıyla.
 - **Çıkarma:** buraya akıllı çıkar, seçilenleri buraya çıkar, seçilenleri/tümünü klasöre çıkar. Seçili klasörlerin tüm içeriği dahil edilir.
 - **Test et:** CRC doğrulaması, hiçbir şey yazılmaz.
-- **Sorunlu arşiv uyarısı:** eksik cilt, yarım indirme, hatalı başlık gibi durumlar sessizce geçilmez; durum satırında ve arşiv bilgisinde ⚠ ile gösterilir (CLI'da `UYARI:` satırı, `t` komutu hata koduyla döner).
+- **Sorunlu arşiv uyarısı:** eksik cilt, yarım indirme, hatalı başlık gibi durumlar sessizce geçilmez; sekmenin üstünde uyarı olarak ve arşiv bilgisinde ⚠ ile gösterilir (CLI'da `UYARI:` satırı, `t` komutu hata koduyla döner).
 - **Görev kuyruğu:** çıkarma ve test arka planda; ilerleme, hız, kalan süre, duraklat/devam/iptal. Görevler ayrı bir okuyucuyla çalışır, sekmede gezinmeyi bekletmez.
 - **Parola diyaloğu:** gerektiğinde açılır, yanlışsa uyarıyla tekrar sorar; doğru parola oturum boyunca hatırlanır.
 - **Varsayılan uygulamayla açma:** çift tıklanan dosya geçici klasöre çıkarılıp açılır. Programlar ve betikler güvenlik için doğrudan açılmaz.
