@@ -18,6 +18,7 @@ public enum ShellVerb
 /// <summary>
 /// Explorer bağlam menüsünden ve komut satırından gelen istek. Komut satırı biçimi:
 /// <c>AfuZip.exe [--extract-here | --extract-folder | --test | --add | --compress &lt;preset&gt;] yol...</c>
+/// Çok sayıda seçimde Explorer eklentisi yolları bir dosyaya yazar: <c>--paths-from liste.txt</c> (satır başına bir yol).
 /// </summary>
 public sealed record ShellCommand(ShellVerb Verb, IReadOnlyList<string> Paths, string? PresetId = null)
 {
@@ -52,6 +53,11 @@ public sealed record ShellCommand(ShellVerb Verb, IReadOnlyList<string> Paths, s
                 if (flag == ShellVerb.Compress && e.MoveNext())
                     preset = e.Current.ToLowerInvariant();
             }
+            else if (arg.Equals("--paths-from", StringComparison.OrdinalIgnoreCase))
+            {
+                if (e.MoveNext())
+                    paths.AddRange(ReadList(e.Current));
+            }
             else if (arg.StartsWith("--", StringComparison.Ordinal))
             {
                 // Bilinmeyen bayrak (eski sürümden kalmış kayıt) yol sayılmaz.
@@ -74,6 +80,39 @@ public sealed record ShellCommand(ShellVerb Verb, IReadOnlyList<string> Paths, s
 
     public ShellCommand MergeWith(ShellCommand other) =>
         this with { Paths = [.. Paths, .. other.Paths.Where(p => !Paths.Contains(p, StringComparer.OrdinalIgnoreCase))] };
+
+    /// <summary>
+    /// Eklentinin yazdığı seçim listesi. %TEMP%\AfuZip altındaysa okunduktan sonra silinir; başka yerdeki
+    /// listeye (kullanıcının kendi dosyası) dokunulmaz.
+    /// </summary>
+    private static IEnumerable<string> ReadList(string listPath)
+    {
+        var list = Normalize(listPath);
+        if (list is null || !File.Exists(list))
+            return [];
+        string[] lines;
+        try
+        {
+            lines = File.ReadAllLines(list);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return [];
+        }
+
+        var tempRoot = Path.Combine(Path.GetTempPath(), "AfuZip") + Path.DirectorySeparatorChar;
+        if (list.StartsWith(tempRoot, StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                File.Delete(list);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+            }
+        }
+        return lines.Select(Normalize).OfType<string>().ToList();
+    }
 
     private static string? Normalize(string arg)
     {

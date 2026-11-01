@@ -94,12 +94,14 @@ public sealed partial class SettingsView : UserControl
         try
         {
             if (ShellToggle.IsOn)
-                ShellIntegration.Register();
+            {
+                Show(InfoBarSeverity.Success, ShellIntegration.RegisteredMessage(ShellIntegration.Register()));
+            }
             else
+            {
                 ShellIntegration.Unregister();
-            Show(InfoBarSeverity.Success, ShellToggle.IsOn
-                ? "Explorer'a eklendi. Arşivlere ve dosyalara sağ tıklayın (Windows 11'de \"Daha fazla seçenek göster\")."
-                : "Explorer sağ tık menüsünden kaldırıldı.");
+                Show(InfoBarSeverity.Success, "Explorer sağ tık menüsünden kaldırıldı.");
+            }
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or System.Security.SecurityException)
         {

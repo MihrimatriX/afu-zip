@@ -33,6 +33,8 @@
 - Windows 11, x64 veya ARM64
 - .NET 10 SDK
 - Visual Studio 2026 (WinUI 3 / "Windows application development" iş yükü) veya yalnızca `dotnet` CLI
+- Explorer eklentisi için (isteğe bağlı) CMake ve MSVC ("Desktop development with C++"): `tools/build-shell.ps1`.
+  Eklenti olmadan da çalışır; sağ tık menüsü o zaman sabit başlıklarla gelir.
 - 7-Zip kurulu olmalı (`C:\Program Files\7-Zip\7z.dll`) ya da 7z.dll uygulamanın yanında durmalı.
   Zstd/Brotli/LZ4 için [7-Zip ZS](https://github.com/mcmilk/7-Zip-zstd) önerilir; o da otomatik bulunur.
   Farklı bir konum için `AFUZIP_7Z_DLL` ortam değişkenini ayarlayın.
@@ -90,17 +92,24 @@ Parola gerekiyorsa CLI gizli girişle sorar; `--password` ile de verilebilir. Ya
 
 ## Windows entegrasyonu
 
-Uygulamada **Ayarlar → Explorer sağ tık menüsü** açılınca (yalnızca geçerli kullanıcı için, yönetici izni gerekmez):
+**Kurulum programı** (`AfuZip-…-setup-x64.exe`) 7-Zip gibi her şeyi kendisi yapar: yalnızca geçerli kullanıcıya kurar
+(yönetici izni istemez), Başlat menüsüne ekler, sağ tık menüsünü ve "Birlikte aç" kaydını açar, Program Ekle/Kaldır'dan
+kaldırılınca hepsini temizler. Taşınabilir zip'te aynı kayıt başlangıç ekranındaki "Ekle" düğmesiyle ya da
+**Ayarlar → Explorer sağ tık menüsü** ile yapılır (komut satırından: `AfuZip.exe --register` / `--unregister`).
 
-| Nerede | Komutlar |
+Sağ tık → **AFU Zip** alt menüsü seçime göre değişir (başlıklar `AfuZip.ShellExtension.dll` eklentisinden gelir):
+
+| Seçim | Komutlar |
 | --- | --- |
-| Arşivlere sağ tık → **AFU Zip** | AFU Zip'te aç, Buraya çıkar (akıllı), Arşiv adıyla klasöre çıkar, Arşivi test et |
-| Her dosya ve klasöre sağ tık → **AFU Zip ile sıkıştır** | Arşive ekle…, 7z olarak sıkıştır, zip olarak sıkıştır |
+| Arşiv(ler) | AFU Zip'te aç, Buraya çıkar (akıllı), `"proje\"` klasörüne çıkar, Test et, ve aşağıdakiler |
+| Her dosya ve klasör | Arşive ekle…, `"Belgeler.7z"` olarak sıkıştır, `"Belgeler.zip"` olarak sıkıştır |
 | "Birlikte aç" ve Ayarlar → Varsayılan uygulamalar | 23 arşiv uzantısı (zip tabanlı belgeler hariç) |
 
 - Sağ tık işleri ana pencereyi açmaz: küçük bir ilerleme penceresi çıkar, iş bitince **"Klasörü aç"** düğmeli bir bildirim
-  gösterip kapanır. Birden çok dosya seçip "7z olarak sıkıştır" denince tek arşiv oluşur.
-- Windows 11'de klasik menü öğeleri "Daha fazla seçenek göster" altındadır; yeni menüye girmek paket kimliği (MSIX) ister.
+  gösterip kapanır. Birden çok dosya seçip sıkıştırınca tek arşiv oluşur (çok sayıda seçim de tek komutla gelir).
+- **Windows 11'in yeni menüsü:** menü şimdilik 7-Zip gibi "Daha fazla seçenek göster" altında. Üstteki yeni menüye
+  (NanaZip gibi) girmek imzalı bir paket ister; eklenti ve sparse paket hazır, CI'da test sertifikasıyla kurulup
+  deneniyor. İmza süreci: [SIGNING.md](SIGNING.md).
 - **Explorer'a sürükle:** listeden dosya veya klasörü masaüstüne/Explorer'a sürükleyin; bırakıldığı anda çıkarılır.
 - **Dışarıda düzenle:** çift tıklayıp varsayılan programda açtığınız dosyayı kaydedince "Arşivde güncelle" çubuğu çıkar.
 - **Görev çubuğu:** etkin işlerin ilerlemesi uygulama düğmesinde görünür (duraklatılınca sarı, hata olunca kırmızı).
@@ -144,6 +153,9 @@ Uygulamada **Ayarlar → Explorer sağ tık menüsü** açılınca (yalnızca ge
 | `AfuZip.Engine.Managed` | Native bağımlılığı olmayan yedek motor: ZIP, TAR, tar.gz, GZip (okuma, yazma, CRC testi) |
 | `AfuZip.Core/Editing`, `Compression` | Düzenleme planlayıcısı, presetler, boyut/süre tahmini, geçici dosya + ciltli yazma |
 | `AfuZip.Cli` | `afuzip` komutu: formats, sniff, list, x, t, a, d, rn |
+| `AfuZip.ShellExtension` | C++ Explorer eklentisi (`IExplorerCommand`): klasik menüde dinamik başlıklar, Windows 11 menüsü için paketli COM sunucusu |
+| `installer/AfuZip.iss` | Inno Setup kurulum programı (kullanıcı başına, `--register` / `--unregister`) |
+| `tools/sparse` | Windows 11 menüsü için sparse paket bildirimi (`tools/build-shell.ps1` derler ve imzalar) |
 | `AfuZip.App` | WinUI 3 (Windows App SDK 2.6): sekmeler, arşiv listesi, oluşturma diyaloğu, görev kuyruğu, parola, ayarlar, Explorer entegrasyonu |
 | `AfuZip.Tests` | xUnit v3: çoğu her platformda, 7z.dll testleri yalnızca Windows'ta |
 
@@ -196,10 +208,10 @@ yapmak için kullanılmasını yasaklar. Kullanılan diğer paketler ve lisansla
 | 3 | Oluşturma ve düzenleme: presetler, tahmin, AES-256, ciltler, ekle/sil/yeniden adlandır | ✅ |
 | 4 | Windows entegrasyonu: sağ tık menüsü, Birlikte aç, dışarı sürükle, dışarıda düzenle, bildirimler, görev çubuğu, taşınabilir paket | ✅ |
 | 5 | Sıkıştırma gücü: dosya türüne göre yöntem (metne PPMd, WAV'a Delta), büyük sözlük, "Arşivlik" kipi | sırada |
-| 6 | Sertleştirme ve 1.0 yayını | |
+| 6 | İmzalı sürüm (Windows 11 yeni menüsü, SmartScreen uyarısız kurulum), sertleştirme ve 1.0 | imza başvurusu |
 
 ### Sıradaki adım: Faz 5 (Sıkıştırma gücü)
 
 Dosya türüne göre otomatik yöntem seçimi (metin ve koda PPMd, ham sese ve görüntüye Delta filtresi, çalıştırılabilir dosyalara
-BCJ2), "Maksimum"da büyük sözlük ve en yüksek oran için ayrı bir "Arşivlik" kipi. Sonra Faz 6'da MSIX paketi ve
-Windows 11'in yeni sağ tık menüsü.
+BCJ2), "Maksimum"da büyük sözlük ve en yüksek oran için ayrı bir "Arşivlik" kipi. Faz 6'da imzalı sürüm: Windows 11'in yeni sağ tık
+menüsü ve SmartScreen uyarısız kurulum ([SIGNING.md](SIGNING.md)).

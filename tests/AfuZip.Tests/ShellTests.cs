@@ -144,6 +144,55 @@ public class ShellTests
         }
     }
 
+    [Fact]
+    public void Registration_WithShellExtension_UsesOneHandlerMenu_AndCleansUpBothKinds()
+    {
+        const string exe = @"C:\Programlar\AFU Zip\AfuZip.exe";
+        const string dll = @"C:\Programlar\AFU Zip\AfuZip.ShellExtension.dll";
+        var writes = ShellRegistration.Build(exe, dll);
+
+        // Eklenti klasik menüyü üstlenir: sabit alt menüler yazılmaz ("Birlikte aç" komutu kalır).
+        Assert.DoesNotContain(writes, w => w.Key.Contains("ArchiveMenu") || w.Key.Contains("CompressMenu"));
+        Assert.DoesNotContain(writes, w => w.Name == "ExtendedSubCommandsKey");
+        Assert.Contains(writes, w => w.Key.EndsWith(@"InprocServer32") && w.Name is null && (string)w.Value == dll);
+        foreach (var target in new[] { @"\*\shell\AfuZip", @"\Directory\shell\AfuZip" })
+        {
+            Assert.Contains(writes, w => w.Key.EndsWith(target) && w.Name == "ExplorerCommandHandler" &&
+                                         (string)w.Value == ShellRegistration.HandlerClsid);
+            Assert.Contains(writes, w => w.Key.EndsWith(target) && w.Name == "MultiSelectModel");
+        }
+        // "Birlikte aç" ve varsayılan uygulama kaydı yine yazılır.
+        Assert.Contains(writes, w => w.Key.EndsWith(@"\.7z\OpenWithProgids") && w.Name == ShellRegistration.ProgId);
+
+        // Kaldırma her iki biçimin anahtarlarını da kapsar (biçim değişince eski menü kalmaz).
+        var owned = ShellRegistration.OwnedKeys(exe);
+        foreach (var write in writes.Concat(ShellRegistration.Build(exe)))
+        {
+            var removed = owned.Any(k => write.Key.Equals(k, StringComparison.OrdinalIgnoreCase) ||
+                                         write.Key.StartsWith(k + @"\", StringComparison.OrdinalIgnoreCase)) ||
+                          ShellRegistration.SharedValues().Any(v => v.Key == write.Key && v.Name == write.Name);
+            Assert.True(removed, $"Kaldırılmıyor: {write.Key} [{write.Name}]");
+        }
+    }
+
+    [Fact]
+    public void PathsFrom_ReadsListAndDeletesItWhenTemporary()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "AfuZip");
+        Directory.CreateDirectory(folder);
+        var list = Path.Combine(folder, $"secim-test-{Guid.NewGuid():N}.txt");
+        var first = Path.Combine(Path.GetTempPath(), "bir dosya.txt");
+        var second = Path.Combine(Path.GetTempPath(), "İkinci", "çiçek.7z");
+        File.WriteAllText(list, $"{first}\r\n{second}\r\n\r\n");
+
+        var command = ShellCommand.Parse(["--compress", "balanced", "--paths-from", list]);
+
+        Assert.Equal(ShellVerb.Compress, command.Verb);
+        Assert.Equal("balanced", command.PresetId);
+        Assert.Equal([first, second], command.Paths);
+        Assert.False(File.Exists(list));
+    }
+
     private static IEnumerable<string> CommandLineSplit(string commandLine)
     {
         var current = new System.Text.StringBuilder();

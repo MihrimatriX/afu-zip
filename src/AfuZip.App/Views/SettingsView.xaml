@@ -127,7 +127,7 @@
                 <FontIcon Glyph="&#xE8A7;" Style="{StaticResource CardIcon}" />
                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
                     <TextBlock Text="Explorer sağ tık menüsü ve &quot;Birlikte aç&quot;" Style="{StaticResource CardTitle}" />
-                    <TextBlock Text="Arşivlerde aç, buraya çıkar, klasöre çıkar, test et; her dosyada arşive ekle, 7z veya zip olarak sıkıştır. Windows 11'de &quot;Daha fazla seçenek göster&quot; altında. Yalnızca sizin hesabınıza kaydedilir." Style="{StaticResource CardText}" />
+                    <TextBlock Text="Arşivlerde aç, buraya çıkar, klasöre çıkar, test et; her dosyada arşive ekle, 7z veya zip olarak sıkıştır. Windows 11'de imzalı menü paketi varsa doğrudan sağ tık menüsünde, yoksa &quot;Daha fazla seçenek göster&quot; altında. Yalnızca sizin hesabınıza kaydedilir." Style="{StaticResource CardText}" />
                 </StackPanel>
                 <ToggleSwitch x:Name="ShellToggle" Grid.Column="2" />
             </Grid>

@@ -1,0 +1,4 @@
+LIBRARY AfuZip.ShellExtension
+EXPORTS
+    DllGetClassObject PRIVATE
+    DllCanUnloadNow PRIVATE

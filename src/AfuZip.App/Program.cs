@@ -18,6 +18,12 @@ public static partial class Program
     {
         WinRT.ComWrappersSupport.InitializeComWrappers();
 
+        // Kurulum programı ve betikler için: pencere açmadan Explorer kaydı.
+        if (args is [var only] && only.Equals("--register", StringComparison.OrdinalIgnoreCase))
+            return RunQuietly(() => Services.ShellIntegration.Register());
+        if (args is [var single] && single.Equals("--unregister", StringComparison.OrdinalIgnoreCase))
+            return RunQuietly(Services.ShellIntegration.Unregister);
+
         if (RedirectToRunningInstance())
             return 0;
 
@@ -28,6 +34,20 @@ public static partial class Program
             _ = new App();
         });
         return 0;
+    }
+
+    private static int RunQuietly(Action action)
+    {
+        try
+        {
+            action();
+            return 0;
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or System.Security.SecurityException)
+        {
+            Services.AppLog.Error("Komut satırından kabuk kaydı", ex);
+            return 1;
+        }
     }
 
     private static bool RedirectToRunningInstance()

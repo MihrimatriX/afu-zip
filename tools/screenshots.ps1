@@ -142,6 +142,64 @@ try { Select-Entry $h "src"; Start-Sleep -Seconds 1; Shot $h "08-koyu" } catch {
 $p.CloseMainWindow() | Out-Null; $p.WaitForExit(15000) | Out-Null
 Remove-Item $settings -ErrorAction SilentlyContinue
 
+# --- 10-13: Explorer sağ tık menüsü: Windows 11 menüsü ve klasik menü ("Daha fazla seçenek göster") ---------------
+Add-Type -TypeDefinition @"
+using System; using System.Runtime.InteropServices;
+public static class Mouse {
+  [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
+  [DllImport("user32.dll")] public static extern void mouse_event(uint f, uint x, uint y, uint d, IntPtr e);
+  public static void RightClick(int x, int y) { SetCursorPos(x, y); mouse_event(0x0008, 0, 0, 0, IntPtr.Zero); mouse_event(0x0010, 0, 0, 0, IntPtr.Zero); }
+}
+"@
+function ShotScreen($name) {
+  $b = New-Object System.Drawing.Bitmap $screen.Width, $screen.Height
+  $g = [System.Drawing.Graphics]::FromImage($b); $g.CopyFromScreen(0, 0, 0, 0, $b.Size)
+  $b.Save((Join-Path $Out "$name.png")); $g.Dispose(); $b.Dispose(); Write-Host "Kaydedildi: $name"
+}
+function Hover-AfuZip($name) {
+  $cond = New-Object System.Windows.Automation.PropertyCondition($UIA::NameProperty, 'AFU Zip')
+  $item = $null
+  for ($i = 0; $i -lt 10 -and -not $item; $i++) { $item = $UIA::RootElement.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $cond); if (-not $item) { Start-Sleep -Milliseconds 500 } }
+  if (-not $item) { Write-Host "Menüde 'AFU Zip' bulunamadı ($name)"; return }
+  $r = $item.Current.BoundingRectangle
+  [Mouse]::SetCursorPos([int]($r.X + $r.Width / 2), [int]($r.Y + $r.Height / 2)) | Out-Null
+  Start-Sleep -Seconds 2
+  ShotScreen $name
+}
+try {
+  $reg = Start-Process -FilePath $Exe -ArgumentList '--register' -PassThru -Wait
+  Write-Host "--register çıkış kodu: $($reg.ExitCode)"
+  Get-AppxPackage -Name AfuZip.ContextMenu | Format-List Name, Version, InstallLocation | Out-String | Write-Host
+  # Uzantılar görünsün (proje klasörü ile proje.7z karışmasın); Explorer yeni paket kaydını okusun diye yeniden başlar.
+  Set-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' HideFileExt 0
+  Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
+  Start-Sleep -Seconds 5
+  if (-not (Get-Process explorer -ErrorAction SilentlyContinue)) { Start-Process explorer.exe; Start-Sleep -Seconds 5 }
+  Start-Process explorer.exe (Resolve-Path $Work).Path
+  $cabinet = New-Object System.Windows.Automation.PropertyCondition($UIA::ClassNameProperty, 'CabinetWClass')
+  $win = $null
+  for ($i = 0; $i -lt 30 -and -not $win; $i++) { $win = $UIA::RootElement.FindFirst([System.Windows.Automation.TreeScope]::Children, $cabinet); if (-not $win) { Start-Sleep -Milliseconds 500 } }
+  if (-not $win) { throw "Explorer penceresi açılmadı" }
+  $eh = [IntPtr]$win.Current.NativeWindowHandle
+  [Native]::SetWindowPos($eh, [IntPtr]::Zero, 40, 40, 1100, 720, 0x0040) | Out-Null
+  Start-Sleep -Seconds 2
+  $file = Find $eh 'proje.7z'
+  (Act $file ([System.Windows.Automation.SelectionItemPattern]::Pattern)).Select()
+  $r = $file.Current.BoundingRectangle
+  [Native]::SetForegroundWindow($eh) | Out-Null; Start-Sleep -Milliseconds 500
+  [Mouse]::RightClick([int]($r.X + 40), [int]($r.Y + $r.Height / 2))
+  Start-Sleep -Seconds 2
+  ShotScreen '10-explorer-menu'
+  Hover-AfuZip '11-explorer-alt-menu'
+  Keys $eh '{ESC}{ESC}{ESC}'; Start-Sleep -Seconds 1
+  # Klasik menü (Windows 11'de "Daha fazla seçenek göster" ile aynı): Shift+F10
+  $file.SetFocus(); Keys $eh '+{F10}'; Start-Sleep -Seconds 2
+  ShotScreen '12-explorer-klasik'
+  Hover-AfuZip '13-explorer-klasik-alt'
+  Keys $eh '{ESC}{ESC}{ESC}'
+  try { ($win.GetCurrentPattern([System.Windows.Automation.WindowPattern]::Pattern)).Close() } catch { }
+} catch { Write-Host "Explorer: $_"; ShotScreen '10-explorer-hata' }
+
 # --- 9: sağ tık "klasöre çıkar" ilerleme penceresi ----------------------------------------------
 # PPMd açması yavaş: pencere birkaç saniye görünsün diye büyük, metin benzeri bir arşiv.
 $bigTxt = (Join-Path $Work 'buyuk.txt') -replace '\\', '/'

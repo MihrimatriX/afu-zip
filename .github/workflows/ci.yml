@@ -59,6 +59,41 @@ jobs:
       - name: Uygulama (x64)
         run: dotnet build src/AfuZip.App -c Release -p:Platform=x64
 
+      # Explorer eklentisi ve Windows 11 menü paketi: kendinden imzalı test sertifikasıyla imzalanıp bu makinede
+      # güvenilir yapılır (dağıtılan sürüm böyle imzalanmaz).
+      - name: Explorer eklentisi (x64, test imzalı paket)
+        shell: pwsh
+        run: |
+          $bin = (Get-ChildItem src/AfuZip.App/bin/x64/Release -Recurse -Filter AfuZip.exe | Select-Object -First 1).DirectoryName
+          ./tools/test-cert.ps1 -Out "$env:RUNNER_TEMP/cert"
+          ./tools/build-shell.ps1 -Platform x64 -Out $bin -Version 0.0.1 -Publisher 'CN=AFU Zip Test' `
+            -Certificate "$env:RUNNER_TEMP/cert/test.pfx" -Password afuzip-test
+
+      # Kurulum programının yaptığı kayıt: klasik menü eklentiye yönlenir, Windows 11 menü paketi kurulur, kaldırınca
+      # hepsi temizlenir.
+      - name: Explorer kaydı (--register / --unregister)
+        shell: pwsh
+        run: |
+          $exe = (Get-ChildItem src/AfuZip.App/bin/x64/Release -Recurse -Filter AfuZip.exe | Select-Object -First 1).FullName
+          $p = Start-Process -FilePath $exe -ArgumentList '--register' -PassThru -Wait
+          if ($p.ExitCode -ne 0) { throw "--register çıkış kodu $($p.ExitCode)" }
+          $handler = (Get-ItemProperty -LiteralPath 'HKCU:\Software\Classes\*\shell\AfuZip').ExplorerCommandHandler
+          if ($handler -ne '{4538D22E-A004-4452-8898-AF47558519CB}') { throw "Klasik menü eklentiye bağlanmadı: '$handler'" }
+          $dll = (Get-ItemProperty -LiteralPath 'HKCU:\Software\Classes\CLSID\{4538D22E-A004-4452-8898-AF47558519CB}\InprocServer32').'(default)'
+          if (-not (Test-Path $dll)) { throw "Eklenti DLL'i yok: $dll" }
+          $package = Get-AppxPackage -Name AfuZip.ContextMenu
+          Write-Host "Windows 11 menü paketi: $($package.PackageFullName) → $($package.InstallLocation)"
+          if (-not $package) {
+            $log = Join-Path $env:LOCALAPPDATA 'AfuZip\logs\afuzip.log'
+            if (Test-Path $log) { Get-Content $log | Write-Host }
+            throw "Sparse paket kurulmadı"
+          }
+          $p = Start-Process -FilePath $exe -ArgumentList '--unregister' -PassThru -Wait
+          if ($p.ExitCode -ne 0) { throw "--unregister çıkış kodu $($p.ExitCode)" }
+          if (Test-Path -LiteralPath 'HKCU:\Software\Classes\*\shell\AfuZip') { throw "Klasik menü kaldırılmadı" }
+          if (Get-AppxPackage -Name AfuZip.ContextMenu) { throw "Sparse paket kaldırılmadı" }
+          Write-Host "Kayıt ve kaldırma çalıştı"
+
       # Uygulamanın kendisi, uçtan uca: sağ tık "arşiv adıyla klasöre çıkar" komutu ilerleme penceresiyle çalışır,
       # iş bitince pencere kendiliğinden kapanır ve süreç sonlanır.
       - name: Uygulama duman testi (sağ tık komutu)
@@ -99,6 +134,20 @@ jobs:
       - name: Uygulama (ARM64)
         run: dotnet build src/AfuZip.App -c Release -p:Platform=ARM64
 
+      - name: Explorer eklentisi (ARM64)
+        shell: pwsh
+        run: ./tools/build-shell.ps1 -Platform ARM64 -Out "$env:RUNNER_TEMP/shell-arm64"
+
+      - name: Kurulum programı (deneme derlemesi)
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress | Out-Null }
+          $bin = (Get-ChildItem src/AfuZip.App/bin/x64/Release -Recurse -Filter AfuZip.exe | Select-Object -First 1).DirectoryName
+          & $iscc /Q /DAppVersion=0.0.1 /DArch=x64 "/DSourceDir=$bin" installer/AfuZip.iss
+          if ($LASTEXITCODE) { throw "Kurulum programı derlenemedi" }
+          Get-ChildItem artifacts/*.exe | Format-Table Name, Length
+
   linux:
     # Yönetilen motor ve güvenlik testleri platformdan bağımsızdır.
     runs-on: ubuntu-latest
@@ -108,3 +157,5 @@ jobs:
         with:
           dotnet-version: 10.0.x
       - run: dotnet test --project tests/AfuZip.Tests -c Release
+      - name: Eklenti ad kuralları (C++)
+        run: g++ -std=c++17 -Wall -Wextra -Werror -o naming_test src/AfuZip.ShellExtension/tests/naming_test.cpp && ./naming_test

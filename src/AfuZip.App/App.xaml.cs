@@ -75,6 +75,17 @@ public partial class App : Application
         _ = Task.Run(() =>
         {
             TempFolders.CleanupStale(TimeSpan.FromDays(1));
+            // Kurulum programı güncellemede Explorer'ın kilitli tuttuğu eski eklentiyi yeniden adlandırır.
+            foreach (var old in Directory.EnumerateFiles(AppContext.BaseDirectory, "AfuZip.ShellExtension.dll.eski*"))
+            {
+                try
+                {
+                    File.Delete(old);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                }
+            }
         });
 
         ShellIntegration.RefreshIfMoved();
