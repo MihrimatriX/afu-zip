@@ -18,8 +18,9 @@
   <img src="https://img.shields.io/badge/lisans-MIT-green" alt="MIT">
 </p>
 
-> **Geliştirme sürümü (v0.6).** Kurulum gerektirmeyen paketler [Releases](https://github.com/MihrimatriX/afu-zip/releases)
-> sayfasında: zip'i açıp `AfuZip.exe`'yi çalıştırın. Hata bulursanız [issue açın](https://github.com/MihrimatriX/afu-zip/issues).
+> **Geliştirme sürümü (v0.7).** [Releases](https://github.com/MihrimatriX/afu-zip/releases) sayfasında kurulum programı
+> (`AfuZip-…-setup-x64.exe`, yönetici izni istemez) ve taşınabilir zip var. Hata bulursanız
+> [issue açın](https://github.com/MihrimatriX/afu-zip/issues).
 
 - **Her biçimi açar:** 7z, ZIP, RAR, TAR ve sıkıştırılmış türleri, ISO, CAB, WIM ve 7-Zip'in tanıdığı ~50 biçim; iç içe arşivler aynı sekmede.
 - **Amaç seçerek sıkıştırır:** Hızlı, Dengeli, Maksimum, Paylaşım, Geliştirici; boyut ve süre tahminiyle. AES-256, cilt bölme.
