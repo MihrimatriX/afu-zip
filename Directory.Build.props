@@ -8,7 +8,7 @@
     <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <Product>AFU Zip</Product>
-    <Version>0.4.1</Version>
+    <Version>0.4.2</Version>
     <NeutralLanguage>tr-TR</NeutralLanguage>
   </PropertyGroup>
 </Project>
