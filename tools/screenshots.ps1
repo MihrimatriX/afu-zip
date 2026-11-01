@@ -148,7 +148,11 @@ using System; using System.Runtime.InteropServices;
 public static class Mouse {
   [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
   [DllImport("user32.dll")] public static extern void mouse_event(uint f, uint x, uint y, uint d, IntPtr e);
+  [DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, uint flags, IntPtr extra);
   public static void RightClick(int x, int y) { SetCursorPos(x, y); mouse_event(0x0008, 0, 0, 0, IntPtr.Zero); mouse_event(0x0010, 0, 0, 0, IntPtr.Zero); }
+  public static void Click(int x, int y) { SetCursorPos(x, y); mouse_event(0x0002, 0, 0, 0, IntPtr.Zero); mouse_event(0x0004, 0, 0, 0, IntPtr.Zero); }
+  // Shift + sağ tık: Windows 11'de doğrudan klasik menü ("Daha fazla seçenek göster").
+  public static void ShiftRightClick(int x, int y) { keybd_event(0x10, 0, 0, IntPtr.Zero); RightClick(x, y); keybd_event(0x10, 0, 2, IntPtr.Zero); }
 }
 "@
 function ShotScreen($name) {
@@ -156,15 +160,23 @@ function ShotScreen($name) {
   $g = [System.Drawing.Graphics]::FromImage($b); $g.CopyFromScreen(0, 0, 0, 0, $b.Size)
   $b.Save((Join-Path $Out "$name.png")); $g.Dispose(); $b.Dispose(); Write-Host "Kaydedildi: $name"
 }
-function Hover-AfuZip($name) {
-  $cond = New-Object System.Windows.Automation.PropertyCondition($UIA::NameProperty, 'AFU Zip')
+# Açık menüdeki "AFU Zip" öğesine tıklayıp alt menüsünü açar (yalnızca fareyle üzerine gelmek XAML menüsünde yetmiyor).
+function Open-AfuZip($name) {
+  $cond = New-Object System.Windows.Automation.AndCondition(
+    (New-Object System.Windows.Automation.PropertyCondition($UIA::NameProperty, 'AFU Zip')),
+    (New-Object System.Windows.Automation.PropertyCondition($UIA::ControlTypeProperty, [System.Windows.Automation.ControlType]::MenuItem)))
   $item = $null
   for ($i = 0; $i -lt 10 -and -not $item; $i++) { $item = $UIA::RootElement.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $cond); if (-not $item) { Start-Sleep -Milliseconds 500 } }
-  if (-not $item) { Write-Host "Menüde 'AFU Zip' bulunamadı ($name)"; return }
+  if (-not $item) { Write-Host "Menüde 'AFU Zip' bulunamadı ($name)"; ShotScreen $name; return }
   $r = $item.Current.BoundingRectangle
-  [Mouse]::SetCursorPos([int]($r.X + $r.Width / 2), [int]($r.Y + $r.Height / 2)) | Out-Null
+  Write-Host "AFU Zip menü öğesi ($name): $r"
+  [Mouse]::Click([int]($r.X + $r.Width / 2), [int]($r.Y + $r.Height / 2))
   Start-Sleep -Seconds 2
   ShotScreen $name
+  # Alt menüdeki başlıklar (eklentiden gelen dinamik adlar) günlüğe
+  $items = $UIA::RootElement.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+    (New-Object System.Windows.Automation.PropertyCondition($UIA::ControlTypeProperty, [System.Windows.Automation.ControlType]::MenuItem)))
+  Write-Host ("Menü öğeleri: " + (($items | ForEach-Object { $_.Current.Name }) -join ' | '))
 }
 try {
   $reg = Start-Process -FilePath $Exe -ArgumentList '--register' -PassThru -Wait
@@ -187,15 +199,18 @@ try {
   (Act $file ([System.Windows.Automation.SelectionItemPattern]::Pattern)).Select()
   $r = $file.Current.BoundingRectangle
   [Native]::SetForegroundWindow($eh) | Out-Null; Start-Sleep -Milliseconds 500
-  [Mouse]::RightClick([int]($r.X + 40), [int]($r.Y + $r.Height / 2))
+  $x = [int]($r.X + 40); $y = [int]($r.Y + $r.Height / 2)
+  [Mouse]::RightClick($x, $y)
   Start-Sleep -Seconds 2
   ShotScreen '10-explorer-menu'
-  Hover-AfuZip '11-explorer-alt-menu'
+  Open-AfuZip '11-explorer-alt-menu'
   Keys $eh '{ESC}{ESC}{ESC}'; Start-Sleep -Seconds 1
-  # Klasik menü (Windows 11'de "Daha fazla seçenek göster" ile aynı): Shift+F10
-  $file.SetFocus(); Keys $eh '+{F10}'; Start-Sleep -Seconds 2
+  # Klasik menü ("Daha fazla seçenek göster" ile aynı): Shift + sağ tık
+  [Native]::SetForegroundWindow($eh) | Out-Null; Start-Sleep -Milliseconds 500
+  [Mouse]::ShiftRightClick($x, $y)
+  Start-Sleep -Seconds 2
   ShotScreen '12-explorer-klasik'
-  Hover-AfuZip '13-explorer-klasik-alt'
+  Open-AfuZip '13-explorer-klasik-alt'
   Keys $eh '{ESC}{ESC}{ESC}'
   try { ($win.GetCurrentPattern([System.Windows.Automation.WindowPattern]::Pattern)).Close() } catch { }
 } catch { Write-Host "Explorer: $_"; ShotScreen '10-explorer-hata' }
