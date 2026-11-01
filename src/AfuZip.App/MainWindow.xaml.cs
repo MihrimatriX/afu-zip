@@ -370,9 +370,9 @@ public sealed partial class MainWindow : Window
     {
         try
         {
-            ShellIntegration.Register();
+            var modern = ShellIntegration.Register();
             ShellSuggestion.IsOpen = false;
-            ShowToast("Explorer'a eklendi: arşivlere ve dosyalara sağ tıklayın (Windows 11'de \"Daha fazla seçenek göster\").", NoticeKind.Success);
+            ShowToast(ShellIntegration.RegisteredMessage(modern), NoticeKind.Success);
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or System.Security.SecurityException)
         {

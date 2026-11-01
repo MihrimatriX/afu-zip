@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- Windows 11 yeni menüsü: Explorer eklentiyi yalnızca bu kimlik sparse paketle eşleşirse yükler. -->
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  <assemblyIdentity version="1.0.0.0" name="AfuZip.ShellExtension" />
+  <msix xmlns="urn:schemas-microsoft-com:msix.v1"
+        publisher="@AFUZIP_PUBLISHER@"
+        packageName="@AFUZIP_PACKAGE_NAME@"
+        applicationId="AfuZip" />
+</assembly>

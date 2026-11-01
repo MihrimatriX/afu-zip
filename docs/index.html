@@ -448,7 +448,7 @@
             </a>
             <a class="button secondary" href="https://github.com/MihrimatriX/afu-zip">Kaynak kodu</a>
           </div>
-          <p class="status">Geliştirme sürümü, v0.6. Kurulum gerektirmez: zip'i açıp AfuZip.exe'yi çalıştırın. Windows 11, x64 veya ARM64.</p>
+          <p class="status">Geliştirme sürümü, v0.7. Kurulum programı yönetici izni istemez; taşınabilir zip de var. Windows 11, x64 veya ARM64.</p>
         </div>
       </div>
 
@@ -533,9 +533,10 @@
           <div class="feature">
             <dt>Windows ile bütünleşir</dt>
             <dd>
-              Arşive sağ tıklayıp "Buraya çıkar", dosyalara sağ tıklayıp "7z olarak sıkıştır": ana pencere açılmaz, iş bitince
-              <strong>"Klasörü aç" düğmeli bir bildirim</strong> gelir. Listeden Explorer'a sürükleyip bırakın; çift tıklayıp
-              başka programda düzenlediğiniz dosyayı kaydedince arşive geri yazmayı önerir. İlerleme görev çubuğunda görünür.
+              Kurulum programı sağ tık menüsünü kendisi ekler, 7-Zip gibi. Arşive sağ tıklayıp <strong>"proje\" klasörüne
+              çıkar</strong>, dosyalara sağ tıklayıp "Belgeler.7z" olarak sıkıştır: ana pencere açılmaz, iş bitince "Klasörü aç"
+              düğmeli bir bildirim gelir. Listeden Explorer'a sürükleyip bırakın; çift tıklayıp başka programda düzenlediğiniz
+              dosyayı kaydedince arşive geri yazmayı önerir.
             </dd>
           </div>
           <div class="feature">
@@ -629,9 +630,9 @@ dotnet run --project src/AfuZip.Cli -- a yedek.7z Belgeler -m max  <span class="
           <li class="done"><span class="phase">1</span><div><h3>Okuma</h3><p>Sekmeler, klasör ağacı, arama, iç içe arşivler, görev kuyruğu, parola.</p></div></li>
           <li class="dropped"><span class="phase">2</span><div><h3>Önizleme</h3><p>0.6'da çıkarıldı: AFU Zip yalnızca arşiv programı olsun diye.</p></div></li>
           <li class="done"><span class="phase">3</span><div><h3>Oluşturma ve düzenleme</h3><p>Amaç seçimi, tahmin, AES-256, ciltler; ekle, sil, yeniden adlandır.</p></div></li>
-          <li class="done"><span class="phase">4</span><div><h3>Windows entegrasyonu</h3><p>Sağ tık menüsü, Birlikte aç, Explorer'a sürükleme, dışarıda düzenleme, bildirimler, taşınabilir paket.</p></div></li>
+          <li class="done"><span class="phase">4</span><div><h3>Windows entegrasyonu</h3><p>Kurulum programı, seçime göre değişen sağ tık menüsü, Birlikte aç, Explorer'a sürükleme, dışarıda düzenleme, bildirimler.</p></div></li>
           <li class="next"><span class="phase">5</span><div><h3>Sıkıştırma gücü</h3><p>Dosya türüne göre yöntem: metne PPMd, ham sese Delta, programlara BCJ2; en yüksek oran için "Arşivlik" kipi.</p></div></li>
-          <li><span class="phase">6</span><div><h3>1.0</h3><p>MSIX paketi, Windows 11'in yeni sağ tık menüsü, sertleştirme ve ilk kararlı sürüm.</p></div></li>
+          <li><span class="phase">6</span><div><h3>1.0</h3><p>İmzalı sürüm: Windows 11'in yeni sağ tık menüsü ve SmartScreen uyarısız kurulum; sertleştirme ve ilk kararlı sürüm.</p></div></li>
         </ol>
       </div>
     </section>

@@ -8,6 +8,7 @@ on:
     paths:
       - .github/workflows/screenshots.yml
       - tools/screenshots.ps1
+      - src/AfuZip.ShellExtension/**
   workflow_dispatch:
 
 permissions:
@@ -23,6 +24,14 @@ jobs:
           dotnet-version: 10.0.x
       - name: Derle
         run: dotnet build src/AfuZip.App -c Release -p:Platform=x64
+      # Explorer menülerini görüntülemek için: eklenti + test sertifikasıyla imzalı Windows 11 menü paketi.
+      - name: Explorer eklentisi (test imzalı)
+        shell: pwsh
+        run: |
+          $bin = (Get-ChildItem src/AfuZip.App/bin/x64/Release -Recurse -Filter AfuZip.exe | Select-Object -First 1).DirectoryName
+          ./tools/test-cert.ps1 -Out "$env:RUNNER_TEMP/cert"
+          ./tools/build-shell.ps1 -Platform x64 -Out $bin -Version 0.0.1 -Publisher 'CN=AFU Zip Test' `
+            -Certificate "$env:RUNNER_TEMP/cert/test.pfx" -Password afuzip-test
       - name: Ekran görüntüleri
         shell: pwsh
         run: |

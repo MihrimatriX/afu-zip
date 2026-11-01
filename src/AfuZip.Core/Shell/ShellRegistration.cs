@@ -13,10 +13,14 @@ public sealed record RegistryWrite(string Key, string? Name, object Value, Regis
 public sealed record RegistryValueRemoval(string Key, string Name);
 
 /// <summary>
-/// Explorer entegrasyonu, yalnızca geçerli kullanıcı için (HKCU, yönetici izni gerekmez):
-/// arşivlerde "AFU Zip" alt menüsü (aç, buraya çıkar, klasöre çıkar, test), her dosya ve klasörde
-/// "AFU Zip ile sıkıştır" alt menüsü, "Birlikte aç" listesi ve Ayarlar → Varsayılan uygulamalar kaydı.
-/// Windows 11'de klasik menü öğeleri "Daha fazla seçenek göster" altında görünür.
+/// Explorer entegrasyonu, yalnızca geçerli kullanıcı için (HKCU, yönetici izni gerekmez): klasik sağ tık menüsü,
+/// "Birlikte aç" listesi ve Ayarlar → Varsayılan uygulamalar kaydı. Windows 11'de klasik menü
+/// "Daha fazla seçenek göster" altındadır; yeni menü imzalı sparse paketle gelir (ShellIntegration).
+/// <para>
+/// Explorer eklentisi (AfuZip.ShellExtension.dll) yanındaysa tek bir "AFU Zip" alt menüsü eklentiye yönlenir:
+/// başlıklar seçime göre değişir ("proje\" klasörüne çıkar, "Belgeler.7z" olarak sıkıştır) ve çok seçim tek
+/// komutla gelir. Eklenti yoksa sabit kayıt defteri menüleri kullanılır.
+/// </para>
 /// </summary>
 public static class ShellRegistration
 {
@@ -33,6 +37,11 @@ public static class ShellRegistration
     private const string RegisteredApplications = @"Software\RegisteredApplications";
     private const string RegisteredName = "AFU Zip";
 
+    /// <summary>Eklentinin klasik menü sınıfı (yeni menüdeki paketli sınıftan ayrı).</summary>
+    public const string HandlerClsid = "{4538D22E-A004-4452-8898-AF47558519CB}";
+    private const string HandlerKey = Classes + @"\CLSID\" + HandlerClsid;
+    private static readonly string[] HandlerTargets = ["*", "Directory"];
+
     // ECF_SEPARATORBEFORE: alt menüde öğeden önce ayırıcı çizgi.
     private const int SeparatorBefore = 0x20;
 
@@ -46,7 +55,8 @@ public static class ShellRegistration
         ".zst", ".tzst", ".lz4", ".lzma", ".br", ".iso", ".cab", ".wim", ".esd", ".001",
     ];
 
-    public static IReadOnlyList<RegistryWrite> Build(string exePath)
+    /// <param name="handlerDll">Explorer eklentisinin tam yolu; null ise sabit menüler yazılır.</param>
+    public static IReadOnlyList<RegistryWrite> Build(string exePath, string? handlerDll = null)
     {
         var exe = Path.GetFileName(exePath);
         var icon = $"{exePath},0";
@@ -68,13 +78,38 @@ public static class ShellRegistration
 
             // Ayarlar → Uygulamalar → Varsayılan uygulamalar.
             new(CapabilitiesKey, "ApplicationName", "AFU Zip"),
-            new(CapabilitiesKey, "ApplicationDescription", "Önizleyicili arşiv yöneticisi (7-Zip motoru)"),
+            new(CapabilitiesKey, "ApplicationDescription", "Sade ve güçlü arşiv programı (7-Zip motoru)"),
             new(CapabilitiesKey, "ApplicationIcon", icon),
             new(RegisteredApplications, RegisteredName, CapabilitiesKey),
             new(AppKey, ExePathValue, exePath),
         };
 
-        // Arşivlerin alt menüsü: komutlar bir kez tanımlanır, her uzantı ExtendedSubCommandsKey ile ona bağlanır.
+        foreach (var extension in Extensions)
+        {
+            writes.Add(new($@"{Classes}\{extension}\OpenWithProgids", ProgId, ""));
+            writes.Add(new($@"{Classes}\Applications\{exe}\SupportedTypes", extension, ""));
+            writes.Add(new($@"{CapabilitiesKey}\FileAssociations", extension, ProgId));
+        }
+
+        if (handlerDll is not null)
+        {
+            // Klasik menü eklentiye yönlenir: tek "AFU Zip" öğesi, alt komutlar seçime göre kendini gizler.
+            writes.Add(new(HandlerKey, null, "AFU Zip menüsü"));
+            writes.Add(new($@"{HandlerKey}\InprocServer32", null, handlerDll));
+            writes.Add(new($@"{HandlerKey}\InprocServer32", "ThreadingModel", "Apartment"));
+            foreach (var target in HandlerTargets)
+            {
+                var key = $@"{Classes}\{target}\shell\{ArchiveVerb}";
+                writes.Add(new(key, "MUIVerb", "AFU Zip"));
+                writes.Add(new(key, "Icon", icon));
+                writes.Add(new(key, "ExplorerCommandHandler", HandlerClsid));
+                // Varsayılan "Document" modeli 15'ten fazla seçimde öğeyi gizler.
+                writes.Add(new(key, "MultiSelectModel", "Player"));
+            }
+            return writes;
+        }
+
+        // Eklenti yok: arşivlerin alt menüsü bir kez tanımlanır, her uzantı ExtendedSubCommandsKey ile ona bağlanır.
         AddCommand(writes, ArchiveMenu, "01open", "AFU Zip'te aç", icon, Command(null));
         AddCommand(writes, ArchiveMenu, "02extracthere", "Buraya çıkar", icon, Command("--extract-here"));
         AddCommand(writes, ArchiveMenu, "03extractfolder", "Arşiv adıyla klasöre çıkar", icon, Command("--extract-folder"));
@@ -85,23 +120,24 @@ public static class ShellRegistration
         AddCommand(writes, CompressMenu, "03zip", "zip olarak sıkıştır", icon, Command("--compress share"));
 
         foreach (var extension in Extensions)
-        {
-            writes.Add(new($@"{Classes}\{extension}\OpenWithProgids", ProgId, ""));
-            writes.Add(new($@"{Classes}\Applications\{exe}\SupportedTypes", extension, ""));
-            writes.Add(new($@"{CapabilitiesKey}\FileAssociations", extension, ProgId));
             AddCascade(writes, $@"{Classes}\SystemFileAssociations\{extension}\shell\{ArchiveVerb}", "AFU Zip", icon, ArchiveMenu);
-        }
 
         AddCascade(writes, $@"{Classes}\*\shell\{CompressVerb}", "AFU Zip ile sıkıştır", icon, CompressMenu);
         AddCascade(writes, $@"{Classes}\Directory\shell\{CompressVerb}", "AFU Zip ile sıkıştır", icon, CompressMenu);
         return writes;
     }
 
-    /// <summary>Tamamen uygulamaya ait, kaldırırken bütünüyle silinen anahtarlar.</summary>
+    /// <summary>
+    /// Tamamen uygulamaya ait, kaldırırken bütünüyle silinen anahtarlar. Her iki menü biçimini de kapsar; kayıttan
+    /// önce de silinir ki sabit menüden eklentiye (ya da tersi) geçişte iki "AFU Zip" öğesi kalmasın.
+    /// </summary>
     public static IReadOnlyList<string> OwnedKeys(string exePath)
     {
         var keys = new List<string>
         {
+            HandlerKey,
+            $@"{Classes}\*\shell\{ArchiveVerb}",
+            $@"{Classes}\Directory\shell\{ArchiveVerb}",
             $@"{Classes}\{ProgId}",
             $@"{Classes}\{ArchiveMenu}",
             $@"{Classes}\{CompressMenu}",
