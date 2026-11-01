@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.Text.Json;
+using AfuZip.Core;
 
 namespace AfuZip.App.Services;
 
@@ -6,6 +8,23 @@ public sealed record RecentItem(string Path)
 {
     public string Name => System.IO.Path.GetFileName(Path);
     public string Folder => System.IO.Path.GetDirectoryName(Path) ?? "";
+    public string SizeText => new FileInfo(Path) is { Exists: true } info ? ByteSize.Format(info.Length) : "";
+
+    /// <summary>Bugün değiştiyse saat, bu yıl ise gün ve ay, daha eskiyse tam tarih.</summary>
+    public string DateText
+    {
+        get
+        {
+            var info = new FileInfo(Path);
+            if (!info.Exists)
+                return "";
+            var time = info.LastWriteTime;
+            var tr = CultureInfo.GetCultureInfo("tr-TR");
+            return time.Date == DateTime.Today ? time.ToString("HH:mm", tr)
+                : time.Year == DateTime.Today.Year ? time.ToString("d MMM HH:mm", tr)
+                : time.ToString("d MMM yyyy", tr);
+        }
+    }
 }
 
 /// <summary>Son açılan arşivler: %LOCALAPPDATA%\AfuZip\recent.json (en fazla 15 kayıt).</summary>

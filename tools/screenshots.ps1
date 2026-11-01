@@ -41,7 +41,7 @@ function Wait-Window($proc) {
   for ($i = 0; $i -lt 60; $i++) { $proc.Refresh(); if ($proc.MainWindowHandle -ne 0) { return $proc.MainWindowHandle }; Start-Sleep -Milliseconds 500 }
   throw "Pencere açılmadı"
 }
-function Fit($hwnd, $w = 1400, $h = 860) {
+function Fit($hwnd, $w = 1280, $h = 820) {
   $w = [Math]::Min($w, $screen.Width); $h = [Math]::Min($h, $screen.Height - 40)
   [Native]::SetWindowPos($hwnd, [IntPtr]::Zero, 0, 0, $w, $h, 0x0040) | Out-Null
 }
@@ -110,7 +110,8 @@ Push-Location $src; & "C:\Program Files\7-Zip\7z.exe" a $archive * | Out-Null; P
 $p = Start-Process -FilePath $Exe -PassThru
 $h = Wait-Window $p; Fit $h; Start-Sleep -Seconds 3
 Shot $h "01-karsilama"
-try { Click $h "Ayarlar"; Start-Sleep -Seconds 1; Shot $h "02-ayarlar"; Keys $h "{ESC}" } catch { Write-Host "Ayarlar: $_" }
+# Ayarlar bir sekmede açılır; Ctrl+W ile kapanır.
+try { Click $h "Ayarlar"; Start-Sleep -Seconds 2; Shot $h "02-ayarlar"; Keys $h "^w"; Start-Sleep -Seconds 1 } catch { Write-Host "Ayarlar: $_" }
 try { Keys $h "^n"; Start-Sleep -Seconds 2; Shot $h "03-olustur"; Keys $h "{ESC}" } catch { Write-Host "Oluştur: $_" }
 $p.CloseMainWindow() | Out-Null; $p.WaitForExit(15000) | Out-Null
 
@@ -123,7 +124,19 @@ foreach ($item in @(@("README.md", "05-markdown"), @("Oyuncu.cs", "06-kod"), @("
 }
 $p.CloseMainWindow() | Out-Null; $p.WaitForExit(15000) | Out-Null
 
-# --- 8: sağ tık "klasöre çıkar" ilerleme penceresi ----------------------------------------------
+# --- 10-11: koyu tema, önizleme sağda, klasör ağacı açık (ayar dosyası elle yazılır) ------------
+$settings = Join-Path $env:LOCALAPPDATA "AfuZip\settings.json"
+New-Item -ItemType Directory -Force (Split-Path $settings) | Out-Null
+'{ "Theme": "Dark", "Preview": "Right", "ShowFolderTree": true, "CompactRows": true }' | Set-Content -Encoding utf8 $settings
+$p = Start-Process -FilePath $Exe -ArgumentList "`"$archive`"" -PassThru
+$h = Wait-Window $p; Fit $h; Start-Sleep -Seconds 5
+foreach ($item in @(@("kapak.png", "10-koyu-resim"), @("Oyuncu.cs", "11-koyu-kod"))) {
+  try { Select-Entry $h $item[0]; Start-Sleep -Seconds 4; Shot $h $item[1] } catch { Write-Host "$($item[0]): $_" }
+}
+$p.CloseMainWindow() | Out-Null; $p.WaitForExit(15000) | Out-Null
+Remove-Item $settings -ErrorAction SilentlyContinue
+
+# --- 9: sağ tık "klasöre çıkar" ilerleme penceresi ----------------------------------------------
 # PPMd açması yavaş: pencere birkaç saniye görünsün diye büyük, metin benzeri bir arşiv.
 $bigTxt = (Join-Path $Work 'buyuk.txt') -replace '\\', '/'
 python -c "import random; w=['arsiv','oyun','seviye','kaplama','ses','model','sahne','kod','veri','harita']; r=random.Random(1); open('$bigTxt','w').write(' '.join(r.choice(w)+str(r.randrange(999)) for _ in range(15000000)))"

@@ -50,7 +50,7 @@ public sealed class ShellActions(ArchiveOpener opener, TaskQueue queue, UiPasswo
         {
             await using var reader = await opener.OpenAsync(archivePath, new OpenOptions(Passwords: passwords), ct);
             var baseDirectory = Path.GetDirectoryName(archivePath)!;
-            var destination = toNewFolder
+            var destination = toNewFolder || SettingsStore.Current.ExtractHere == ExtractHereMode.AlwaysFolder
                 ? SmartExtract.FolderFor(name, baseDirectory)
                 : SmartExtract.ResolveDestination(name, reader.Entries, baseDirectory);
 
@@ -62,6 +62,8 @@ public sealed class ShellActions(ArchiveOpener opener, TaskQueue queue, UiPasswo
 
             if (result.Failed.Count > 0)
                 throw new IOException($"{result} İlk hata: {result.Failed[0].EntryPath}: {result.Failed[0].Reason}");
+            if (SettingsStore.Current.RevealAfterExtract)
+                Notifications.Reveal(job.RevealPath);
             return result.Blocked.Count > 0
                 ? $"{result} Engellenen: {result.Blocked[0].EntryPath} ({result.Blocked[0].Reason})"
                 : $"{result} → {job.RevealPath}";
