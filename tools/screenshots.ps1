@@ -122,6 +122,9 @@ Shot $h "04-arsiv"
 foreach ($item in @(@("README.md", "05-markdown"), @("Oyuncu.cs", "06-kod"), @("kayit.json", "07-json"), @("kapak.png", "08-resim"))) {
   try { Select-Entry $h $item[0]; Start-Sleep -Seconds 4; Shot $h $item[1] } catch { Write-Host "$($item[0]): $_" }
 }
+# Sağ tık menüsü (klavyeden Shift+F10) ve ⋯ menüsü
+try { $el = Find $h "Oyuncu.cs"; (Act $el ([System.Windows.Automation.SelectionItemPattern]::Pattern)).Select(); $el.SetFocus(); Keys $h "+{F10}"; Start-Sleep -Seconds 1; Shot $h "12-sag-tik"; Keys $h "{ESC}" } catch { Write-Host "Sağ tık: $_" }
+try { Click $h "Diğer"; Start-Sleep -Seconds 1; Shot $h "13-menu"; Keys $h "{ESC}" } catch { Write-Host "Menü: $_" }
 $p.CloseMainWindow() | Out-Null; $p.WaitForExit(15000) | Out-Null
 
 # --- 10-11: koyu tema, önizleme sağda, klasör ağacı açık (ayar dosyası elle yazılır) ------------

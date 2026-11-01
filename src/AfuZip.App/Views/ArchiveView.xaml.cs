@@ -31,6 +31,8 @@ public sealed partial class ArchiveView : UserControl
     private bool _previewRight;
     private DependencyObject? _previewDefinition; // alttaysa satır, sağdaysa sütun tanımı
     private bool _closed;
+    private readonly MenuFlyout _entryMenu;
+    private MenuFlyoutItem _openItem = null!, _renameItem = null!, _deleteItem = null!;
 
     public ArchiveView(ArchiveTabViewModel viewModel, Func<nint> windowHandle)
     {
@@ -39,6 +41,7 @@ public sealed partial class ArchiveView : UserControl
         InitializeComponent();
 
         PreviewHost.Child = _preview = new PreviewPane(viewModel.Preview);
+        _entryMenu = BuildEntryMenu();
         PreviewSplitter.Dragged += OnPreviewSplitterDragged;
         PreviewSplitter.DragCompleted += OnPreviewSplitterCompleted;
         TreeSplitter.Dragged += OnTreeSplitterDragged;
@@ -100,8 +103,6 @@ public sealed partial class ArchiveView : UserControl
 
     // --- Gezinme ---------------------------------------------------------------------------------
 
-    private async void OnUp(object sender, RoutedEventArgs e) => await ViewModel.GoUpAsync();
-
     private async void OnBreadcrumbClicked(BreadcrumbBar sender, BreadcrumbBarItemClickedEventArgs args)
     {
         if (args.Item is BreadcrumbSegment segment)
@@ -151,6 +152,53 @@ public sealed partial class ArchiveView : UserControl
                 await PromptRenameAsync(renamed);
                 break;
         }
+    }
+
+    // --- Sağ tık menüsü ----------------------------------------------------------------------------
+
+    private MenuFlyout BuildEntryMenu()
+    {
+        var menu = new MenuFlyout();
+        _openItem = Item("Aç", "Enter", async (_, _) =>
+        {
+            if (EntriesList.SelectedItem is EntryItem item)
+                await ViewModel.ActivateAsync(item);
+        });
+        menu.Items.Add(_openItem);
+        menu.Items.Add(new MenuFlyoutSeparator());
+        menu.Items.Add(Item("Buraya çıkar", null, OnExtractSelectionHere));
+        menu.Items.Add(Item("Klasöre çıkar…", null, OnExtractSelectionTo));
+        menu.Items.Add(new MenuFlyoutSeparator());
+        menu.Items.Add(_renameItem = Item("Yeniden adlandır", "F2", OnRename));
+        menu.Items.Add(_deleteItem = Item("Sil", "Del", OnDelete));
+        return menu;
+
+        static MenuFlyoutItem Item(string text, string? shortcut, RoutedEventHandler click)
+        {
+            var item = new MenuFlyoutItem { Text = text };
+            if (shortcut is not null)
+                item.KeyboardAcceleratorTextOverride = shortcut;
+            item.Click += click;
+            return item;
+        }
+    }
+
+    /// <summary>Sağ tıklanan öğe seçili değilse önce o seçilir (Gezgin gibi), sonra menü açılır.</summary>
+    private void OnListContextRequested(UIElement sender, ContextRequestedEventArgs args)
+    {
+        if ((args.OriginalSource as FrameworkElement)?.DataContext is EntryItem item && !EntriesList.SelectedItems.Contains(item))
+            EntriesList.SelectedItem = item;
+        if (EntriesList.SelectedItems.Count == 0)
+            return;
+
+        args.Handled = true;
+        _openItem.IsEnabled = EntriesList.SelectedItems.Count == 1;
+        _renameItem.IsEnabled = ViewModel.CanEdit && EntriesList.SelectedItems.Count == 1;
+        _deleteItem.IsEnabled = ViewModel.CanEdit;
+        if (args.TryGetPosition(EntriesList, out var point))
+            _entryMenu.ShowAt(EntriesList, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions { Position = point });
+        else if (EntriesList.ContainerFromItem(EntriesList.SelectedItem) is FrameworkElement container)
+            _entryMenu.ShowAt(container);
     }
 
     // --- Düzenleme -------------------------------------------------------------------------------
@@ -415,6 +463,7 @@ public sealed partial class ArchiveView : UserControl
         Place(PreviewSplitter, 1);
         Place(PreviewHost, 2);
         ClampPreview();
+        UpdateColumns(ListPane.ActualWidth);
 
         void Place(FrameworkElement element, int index)
         {
@@ -477,17 +526,26 @@ public sealed partial class ArchiveView : UserControl
 
     // Boyut, sıkıştırılmış, oran, yöntem, değiştirilme (kenar boşluğu dahil genişlikler).
     private static readonly double[] FullColumnWidths = [96, 96, 64, 132, 140];
-    // Yer daraldıkça kalanlar: önce boyut, sonra oran, tarih, yöntem; sıkıştırılmış boyut ilk gizlenen.
-    private static readonly int[] ColumnPriority = [0, 2, 4, 3, 1];
+    // Yer daraldıkça kalanlar: önce boyut, sonra tarih, oran, yöntem; sıkıştırılmış boyut ilk gizlenen.
+    private static readonly int[] ColumnPriority = [0, 4, 2, 3, 1];
     private const double MinNameWidth = 200;
-    private double[] _columnWidths = [.. FullColumnWidths];
+    private double[] _columnWidths = [96, 0, 0, 0, 140]; // XAML'deki başlangıç (ad, boyut, tarih)
 
-    private void OnListPaneSizeChanged(object sender, SizeChangedEventArgs e)
+    private void OnListPaneSizeChanged(object sender, SizeChangedEventArgs e) => UpdateColumns(e.NewSize.Width);
+
+    /// <summary>Ayarlarda açık olan sütunlar, ad sütununa 200 px kalacak kadar (öncelik sırasıyla) gösterilir.</summary>
+    private void UpdateColumns(double listWidth)
     {
-        var available = e.NewSize.Width - HeaderGrid.Padding.Left - HeaderGrid.Padding.Right - MinNameWidth;
+        if (listWidth <= 0)
+            return;
+        var settings = SettingsStore.Current;
+        bool[] enabled = [true, settings.ShowPackedColumn, settings.ShowRatioColumn, settings.ShowMethodColumn, settings.ShowModifiedColumn];
+        var available = listWidth - HeaderGrid.Padding.Left - HeaderGrid.Padding.Right - MinNameWidth;
         var widths = new double[FullColumnWidths.Length];
         foreach (var column in ColumnPriority)
         {
+            if (!enabled[column])
+                continue;
             if (available < FullColumnWidths[column])
                 break;
             widths[column] = FullColumnWidths[column];
@@ -535,6 +593,39 @@ public sealed partial class ArchiveView : UserControl
         PreviewRightItem.IsChecked = settings.Preview == PreviewPlacement.Right;
         TreeMenuItem.IsChecked = settings.ShowFolderTree;
         CompactMenuItem.IsChecked = settings.CompactRows;
+        ModifiedColumnItem.IsChecked = settings.ShowModifiedColumn;
+        RatioColumnItem.IsChecked = settings.ShowRatioColumn;
+        MethodColumnItem.IsChecked = settings.ShowMethodColumn;
+        PackedColumnItem.IsChecked = settings.ShowPackedColumn;
+    }
+
+    private void OnToggleColumn(object sender, RoutedEventArgs e) => SettingsStore.Update(x =>
+    {
+        x.ShowModifiedColumn = ModifiedColumnItem.IsChecked;
+        x.ShowRatioColumn = RatioColumnItem.IsChecked;
+        x.ShowMethodColumn = MethodColumnItem.IsChecked;
+        x.ShowPackedColumn = PackedColumnItem.IsChecked;
+    });
+
+    /// <summary>Arşiv bilgisi ⋯ menüsünün altında küçük bir pencerede.</summary>
+    private void OnShowInfo(object sender, RoutedEventArgs e)
+    {
+        var panel = new StackPanel { Spacing = 8, MaxWidth = 380 };
+        panel.Children.Add(new TextBlock
+        {
+            Text = ViewModel.Title,
+            Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"],
+            TextTrimming = TextTrimming.CharacterEllipsis,
+        });
+        panel.Children.Add(new TextBlock
+        {
+            Text = ViewModel.ArchiveInfo,
+            TextWrapping = TextWrapping.Wrap,
+            IsTextSelectionEnabled = true,
+            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
+        });
+        new Flyout { Content = panel, Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.BottomEdgeAlignedRight }
+            .ShowAt(MoreButton);
     }
 
     private void OnPreviewBottom(object sender, RoutedEventArgs e) => PlacePreview(PreviewPlacement.Bottom);
@@ -556,7 +647,40 @@ public sealed partial class ArchiveView : UserControl
     private void OnFocusSearch(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
         args.Handled = true;
-        SearchBox.Focus(FocusState.Keyboard);
+        ExpandSearch();
+    }
+
+    private void OnSearchButtonClick(object sender, RoutedEventArgs e) => ExpandSearch();
+
+    private void ExpandSearch()
+    {
+        SearchBox.Visibility = Visibility.Visible;
+        SearchButton.Visibility = Visibility.Collapsed;
+        SearchBox.Focus(FocusState.Programmatic);
+    }
+
+    /// <summary>Boş arama kutusu odaktan çıkınca yeniden simgeye döner.</summary>
+    private void OnSearchLostFocus(object sender, RoutedEventArgs e)
+    {
+        if (SearchBox.Text.Length == 0)
+            CollapseSearch();
+    }
+
+    private void OnSearchKeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key != VirtualKey.Escape)
+            return;
+        e.Handled = true;
+        SearchBox.Text = "";
+        ViewModel.SearchText = "";
+        CollapseSearch();
+        EntriesList.Focus(FocusState.Keyboard);
+    }
+
+    private void CollapseSearch()
+    {
+        SearchBox.Visibility = Visibility.Collapsed;
+        SearchButton.Visibility = Visibility.Visible;
     }
 
     private void OnSearchTextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)

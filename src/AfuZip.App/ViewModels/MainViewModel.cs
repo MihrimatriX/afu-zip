@@ -48,9 +48,18 @@ public sealed class MainViewModel : ObservableObject
         {
             // İlerleme bildirimleri saniyede ~10 gelir; başlık yalnızca durum değişince güncellenir.
             if (e.PropertyName == nameof(ArchiveTask.State))
+            {
                 NotifyTasks();
+                // Durum çubuğu olmadığı için biten iş kısa bir bildirimle duyurulur.
+                if (task.State == ArchiveTaskState.Completed)
+                    Notice?.Invoke(task.StatusText, NoticeKind.Success);
+                else if (task.State == ArchiveTaskState.Failed)
+                    Notice?.Invoke($"{task.Title}: {task.StatusText}", NoticeKind.Error);
+            }
             else if (e.PropertyName == nameof(ArchiveTask.Percent))
+            {
                 OnPropertyChanged(nameof(TasksPercent));
+            }
         };
         NotifyTasks();
     }
@@ -64,45 +73,19 @@ public sealed class MainViewModel : ObservableObject
     public ArchiveTabViewModel? SelectedTab
     {
         get => _selectedTab;
-        set
-        {
-            var old = _selectedTab;
-            if (!SetProperty(ref _selectedTab, value))
-                return;
-            if (old is not null)
-                old.PropertyChanged -= OnSelectedTabChanged;
-            if (value is not null)
-                value.PropertyChanged += OnSelectedTabChanged;
-            OnPropertyChanged(nameof(CurrentStatus));
-            OnPropertyChanged(nameof(CurrentSummary));
-        }
+        set => SetProperty(ref _selectedTab, value);
     }
 
-    private void OnSelectedTabChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    public string Status { get => _status; private set => SetProperty(ref _status, value); }
+
+    /// <summary>Pencerenin altında kısa süre görünen bildirim (hata, biten iş, uyarı).</summary>
+    public event Action<string, NoticeKind>? Notice;
+
+    public void Report(string message, NoticeKind kind = NoticeKind.Info)
     {
-        if (e.PropertyName == nameof(ArchiveTabViewModel.Status))
-            OnPropertyChanged(nameof(CurrentStatus));
-        else if (e.PropertyName == nameof(ArchiveTabViewModel.Summary))
-            OnPropertyChanged(nameof(CurrentSummary));
+        Status = message;
+        Notice?.Invoke(message, kind);
     }
-
-    public string Status
-    {
-        get => _status;
-        private set
-        {
-            if (SetProperty(ref _status, value))
-                OnPropertyChanged(nameof(CurrentStatus));
-        }
-    }
-
-    public void SetStatus(string status) => Status = status;
-
-    /// <summary>Durum çubuğunun solu: seçili sekmenin durumu (seçim, arama sonucu) ya da genel durum.</summary>
-    public string CurrentStatus => _selectedTab is { Status.Length: > 0 } tab ? tab.Status : Status;
-
-    /// <summary>Durum çubuğunun ortası: seçili arşivin tek satırlık özeti.</summary>
-    public string CurrentSummary => _selectedTab?.Summary ?? "";
     public bool IsBusy { get => _isBusy; private set => SetProperty(ref _isBusy, value); }
 
     public bool HasTabs => Tabs.Count > 0;
@@ -111,6 +94,7 @@ public sealed class MainViewModel : ObservableObject
     public bool HasNoRecent => Recent.Count == 0;
     public bool HasTasks => Tasks.Count > 0;
     public bool HasActiveTasks => Tasks.Any(t => t.IsActive);
+    public bool HasNoActiveTasks => !HasActiveTasks;
 
     /// <summary>Etkin görevlerin ortalama ilerlemesi (durum çubuğundaki küçük çubuk).</summary>
     public double TasksPercent => Tasks.Where(t => t.IsActive).Select(t => t.Percent).DefaultIfEmpty(0).Average();
@@ -129,6 +113,7 @@ public sealed class MainViewModel : ObservableObject
         IsBusy = true;
         Status = $"Açılıyor: {Path.GetFileName(path)}";
         var tab = new ArchiveTabViewModel(_opener, _queue, _passwords, _previewCache);
+        tab.Notice += OnTabNotice;
         try
         {
             await tab.LoadAsync(path);
@@ -141,12 +126,12 @@ public sealed class MainViewModel : ObservableObject
         }
         catch (ArchivePasswordException ex)
         {
-            Status = ex.WasProvided ? "Parola yanlış; arşiv açılamadı." : "Parola girilmedi; arşiv açılamadı.";
+            Report(ex.WasProvided ? "Parola yanlış; arşiv açılamadı." : "Parola girilmedi; arşiv açılamadı.", NoticeKind.Error);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             AppLog.Error($"Arşiv açılamadı: {path}", ex);
-            Status = $"Açılamadı: {AppLog.Describe(ex)}";
+            Report($"{Path.GetFileName(path)} açılamadı: {AppLog.Describe(ex)}", NoticeKind.Error);
         }
         finally
         {
@@ -156,12 +141,16 @@ public sealed class MainViewModel : ObservableObject
         // Sekme arayüzü oluşturulurken hata olduysa koleksiyonda yarım bir sekme kalmasın.
         if (Tabs.Remove(tab))
             NotifyTabs();
+        tab.Notice -= OnTabNotice;
         await tab.DisposeAsync();
         return null;
     }
 
+    private void OnTabNotice(string message, NoticeKind kind) => Notice?.Invoke(message, kind);
+
     public async Task CloseTabAsync(ArchiveTabViewModel tab)
     {
+        tab.Notice -= OnTabNotice;
         Tabs.Remove(tab);
         if (SelectedTab == tab)
             SelectedTab = Tabs.LastOrDefault();
@@ -258,6 +247,7 @@ public sealed class MainViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(HasTasks));
         OnPropertyChanged(nameof(HasActiveTasks));
+        OnPropertyChanged(nameof(HasNoActiveTasks));
         OnPropertyChanged(nameof(TasksPercent));
         OnPropertyChanged(nameof(TasksHeader));
     }

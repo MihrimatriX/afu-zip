@@ -11,9 +11,19 @@
         <MicaBackdrop />
     </Window.SystemBackdrop>
 
-    <!-- Üç satır: başlık çubuğundaki sekmeler, içerik, tek durum çubuğu. -->
+    <!-- İki satır: başlık çubuğundaki sekmeler ve içerik. Durum çubuğu yok; sonuçlar alttaki kısa bildirimde. -->
     <Grid x:Name="Root" Background="Transparent" AllowDrop="True" DragOver="OnDragOver" Drop="OnDrop"
           KeyboardAcceleratorPlacementMode="Hidden">
+        <Grid.Resources>
+            <Style x:Key="TitleButton" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+                <Setter Property="Width" Value="40" />
+                <Setter Property="Height" Value="32" />
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="VerticalAlignment" Value="Center" />
+            </Style>
+        </Grid.Resources>
         <Grid.KeyboardAccelerators>
             <KeyboardAccelerator Modifiers="Control" Key="O" Invoked="OnOpenAccelerator" />
             <KeyboardAccelerator Modifiers="Control" Key="W" Invoked="OnCloseTabAccelerator" />
@@ -23,14 +33,15 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="48" />
             <RowDefinition Height="*" />
-            <RowDefinition Height="30" />
         </Grid.RowDefinitions>
 
-        <!-- Başlık çubuğu = sekme şeridi (Terminal ve Gezgin gibi). Boş kısım pencereyi sürükler. -->
-        <Grid x:Name="TitleArea">
+        <!-- Başlık çubuğu = sekme şeridi; sağda görevler ve ayarlar. Boş kısım pencereyi sürükler. -->
+        <Grid x:Name="TitleArea" ColumnSpacing="2">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <Image x:Name="TitleIcon" Width="16" Height="16" Margin="14,4,6,0" VerticalAlignment="Center" />
             <TabView x:Name="Tabs" Grid.Column="1" VerticalAlignment="Bottom"
@@ -39,132 +50,24 @@
                      TabCloseRequested="OnTabCloseRequested"
                      SelectionChanged="OnTabSelectionChanged">
                 <TabView.TabStripFooter>
-                    <Grid x:Name="DragRegion" Background="Transparent" MinWidth="160" />
+                    <Grid x:Name="DragRegion" Background="Transparent" MinWidth="120" />
                 </TabView.TabStripFooter>
             </TabView>
-        </Grid>
 
-        <!-- İçerik: başlangıç ekranı ya da seçili sekmenin görünümü (görünümler kodda eklenir, açık kalır). -->
-        <Grid x:Name="ViewHost" Grid.Row="1">
-            <ScrollViewer x:Name="Home" VerticalScrollBarVisibility="Auto">
-                <StackPanel MaxWidth="1000" Padding="32,20,32,24" Spacing="14" HorizontalAlignment="Stretch">
-                    <Grid ColumnSpacing="16">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <Image x:Name="HomeIcon" Width="44" Height="44" VerticalAlignment="Center" />
-                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
-                            <TextBlock Text="Arşiv açın ya da buraya sürükleyin" Style="{StaticResource SubtitleTextBlockStyle}" />
-                            <TextBlock Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                       Text="Arşivler yeni sekmede açılır; arşiv olmayan dosya ve klasörlerden yeni arşiv oluşturulur." />
-                        </StackPanel>
-                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                            <Button Style="{StaticResource AccentButtonStyle}" Click="OnOpenClick" ToolTipService.ToolTip="Ctrl+O">
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <FontIcon Glyph="&#xE8E5;" FontSize="14" />
-                                    <TextBlock Text="Arşiv aç" />
-                                </StackPanel>
-                            </Button>
-                            <Button Click="OnCreateClick" ToolTipService.ToolTip="Ctrl+N">
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <FontIcon Glyph="&#xE7B8;" FontSize="14" />
-                                    <TextBlock Text="Arşiv oluştur" />
-                                </StackPanel>
-                            </Button>
-                        </StackPanel>
-                    </Grid>
-
-                    <InfoBar x:Name="EngineWarning" IsClosable="True" Severity="Warning" Title="7-Zip bulunamadı"
-                             Message="Yalnızca zip, tar ve tar.gz açılabilir. 7z, RAR, ISO ve diğer biçimler için 7-Zip veya 7-Zip ZS kurun.">
-                        <InfoBar.ActionButton>
-                            <HyperlinkButton Content="7-Zip ZS'yi indir" NavigateUri="https://github.com/mcmilk/7-Zip-zstd/releases/latest" />
-                        </InfoBar.ActionButton>
-                    </InfoBar>
-                    <InfoBar x:Name="ShellSuggestion" IsClosable="True" Severity="Informational" Title="Explorer'a ekleyin"
-                             Message="Arşivlere sağ tıklayınca &quot;Buraya çıkar&quot;, dosyalara sağ tıklayınca &quot;Sıkıştır&quot; çıksın.">
-                        <InfoBar.ActionButton>
-                            <Button Content="Sağ tık menüsüne ekle" Click="OnSuggestionRegister" />
-                        </InfoBar.ActionButton>
-                    </InfoBar>
-
-                    <TextBlock Text="Son açılanlar" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,6,0,0" />
-                    <Border Background="{ThemeResource LayerFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                            BorderThickness="1" CornerRadius="6" Padding="0,4"
-                            Visibility="{x:Bind ViewModel.HasRecent, Mode=OneWay}">
-                        <ListView ItemsSource="{x:Bind ViewModel.Recent}" IsItemClickEnabled="True" SelectionMode="None" ItemClick="OnRecentClick">
-                            <ListView.ItemContainerStyle>
-                                <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
-                                    <Setter Property="MinHeight" Value="44" />
-                                </Style>
-                            </ListView.ItemContainerStyle>
-                            <ListView.ItemTemplate>
-                                <DataTemplate x:DataType="services:RecentItem">
-                                    <Grid ColumnSpacing="14" ToolTipService.ToolTip="{x:Bind Path}">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="90" />
-                                            <ColumnDefinition Width="130" />
-                                        </Grid.ColumnDefinitions>
-                                        <FontIcon Glyph="&#xF012;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                            <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
-                                            <TextBlock Text="{x:Bind Folder}" Style="{StaticResource CaptionTextBlockStyle}" TextTrimming="CharacterEllipsis"
-                                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                        </StackPanel>
-                                        <TextBlock Grid.Column="2" Text="{x:Bind SizeText}" HorizontalAlignment="Right" VerticalAlignment="Center"
-                                                   Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                        <TextBlock Grid.Column="3" Text="{x:Bind DateText}" HorizontalAlignment="Right" VerticalAlignment="Center"
-                                                   Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                    </Grid>
-                                </DataTemplate>
-                            </ListView.ItemTemplate>
-                        </ListView>
-                    </Border>
-                    <Border BorderBrush="{ThemeResource ControlStrongStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="6"
-                            Padding="24,28" Visibility="{x:Bind ViewModel.HasNoRecent, Mode=OneWay}">
-                        <StackPanel Spacing="4" HorizontalAlignment="Center">
-                            <FontIcon Glyph="&#xE896;" FontSize="22" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
-                            <TextBlock Text="Henüz açılan arşiv yok" HorizontalAlignment="Center" />
-                            <TextBlock HorizontalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}"
-                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                       Text="7z, ZIP, RAR, TAR, ISO, CAB, WIM ve 7-Zip'in tanıdığı diğer biçimler." />
-                        </StackPanel>
-                    </Border>
-                </StackPanel>
-            </ScrollViewer>
-
-            <ProgressBar VerticalAlignment="Top" IsIndeterminate="True" Visibility="{x:Bind ViewModel.IsBusy, Mode=OneWay}" />
-        </Grid>
-
-        <!-- Durum çubuğu: seçili sekmenin durumu ve arşiv özeti, görevler, ayarlar. -->
-        <Grid Grid.Row="2" Padding="14,0,6,0" ColumnSpacing="16"
-              BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <TextBlock VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="560"
-                       Style="{StaticResource CaptionTextBlockStyle}" Text="{x:Bind ViewModel.CurrentStatus, Mode=OneWay}" />
-            <TextBlock Grid.Column="1" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
-                       Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                       Text="{x:Bind ViewModel.CurrentSummary, Mode=OneWay}" />
-
-            <Button Grid.Column="2" Padding="8,2" Background="Transparent" BorderThickness="0"
-                    Visibility="{x:Bind ViewModel.HasTasks, Mode=OneWay}" ToolTipService.ToolTip="Görevler">
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <ProgressBar Width="72" VerticalAlignment="Center" Maximum="100"
-                                 Value="{x:Bind ViewModel.TasksPercent, Mode=OneWay}"
-                                 Visibility="{x:Bind ViewModel.HasActiveTasks, Mode=OneWay}" />
-                    <TextBlock Text="{x:Bind ViewModel.TasksHeader, Mode=OneWay}" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center" />
-                </StackPanel>
+            <!-- Görevler: çalışırken ilerleme halkası, bitince liste simgesi -->
+            <Button Grid.Column="2" Style="{StaticResource TitleButton}" Margin="0,4,0,0"
+                    Visibility="{x:Bind ViewModel.HasTasks, Mode=OneWay}"
+                    ToolTipService.ToolTip="{x:Bind ViewModel.TasksHeader, Mode=OneWay}" AutomationProperties.Name="Görevler">
+                <Grid>
+                    <ProgressRing Width="16" Height="16" IsIndeterminate="False" Maximum="100"
+                                  Value="{x:Bind ViewModel.TasksPercent, Mode=OneWay}"
+                                  IsActive="{x:Bind ViewModel.HasActiveTasks, Mode=OneWay}"
+                                  Visibility="{x:Bind ViewModel.HasActiveTasks, Mode=OneWay}" />
+                    <FontIcon Glyph="&#xE9D5;" FontSize="14" Visibility="{x:Bind ViewModel.HasNoActiveTasks, Mode=OneWay}" />
+                </Grid>
                 <Button.Flyout>
-                    <Flyout Placement="TopEdgeAlignedRight">
-                        <Grid Width="440" RowSpacing="6">
+                    <Flyout Placement="BottomEdgeAlignedRight">
+                        <Grid Width="420" RowSpacing="6">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="*" />
@@ -213,13 +116,100 @@
                 </Button.Flyout>
             </Button>
 
-            <Button Grid.Column="3" Padding="8,2" Background="Transparent" BorderThickness="0" Click="OnSettingsClick"
+            <Button Grid.Column="3" Style="{StaticResource TitleButton}" Margin="0,4,4,0" Click="OnSettingsClick"
                     ToolTipService.ToolTip="Ayarlar (Ctrl+,)" AutomationProperties.Name="Ayarlar">
-                <StackPanel Orientation="Horizontal" Spacing="6">
-                    <FontIcon Glyph="&#xE713;" FontSize="12" />
-                    <TextBlock Text="Ayarlar" Style="{StaticResource CaptionTextBlockStyle}" />
-                </StackPanel>
+                <FontIcon Glyph="&#xE713;" FontSize="14" />
             </Button>
+        </Grid>
+
+        <!-- İçerik: başlangıç ekranı ya da seçili sekmenin görünümü (görünümler kodda eklenir, açık kalır). -->
+        <Grid x:Name="ViewHost" Grid.Row="1">
+            <Grid x:Name="Home">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <StackPanel MaxWidth="880" Padding="24,8,24,0" Spacing="8">
+                    <InfoBar x:Name="EngineWarning" IsClosable="True" Severity="Warning" Title="7-Zip bulunamadı"
+                             Message="Yalnızca zip, tar ve tar.gz açılabilir. 7z, RAR, ISO ve diğer biçimler için 7-Zip veya 7-Zip ZS kurun.">
+                        <InfoBar.ActionButton>
+                            <HyperlinkButton Content="7-Zip ZS'yi indir" NavigateUri="https://github.com/mcmilk/7-Zip-zstd/releases/latest" />
+                        </InfoBar.ActionButton>
+                    </InfoBar>
+                    <InfoBar x:Name="ShellSuggestion" IsClosable="True" Severity="Informational" Title="Explorer'a ekleyin"
+                             Message="Sağ tıkta &quot;Buraya çıkar&quot; ve &quot;Sıkıştır&quot; çıksın."
+                             CloseButtonClick="OnSuggestionClosed">
+                        <InfoBar.ActionButton>
+                            <Button Content="Ekle" Click="OnSuggestionRegister" />
+                        </InfoBar.ActionButton>
+                    </InfoBar>
+                </StackPanel>
+
+                <!-- Hiç arşiv açılmadıysa: ortada tek çağrı -->
+                <StackPanel Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6" Margin="0,0,0,48"
+                            Visibility="{x:Bind ViewModel.HasNoRecent, Mode=OneWay}">
+                    <Image x:Name="HomeIcon" Width="44" Height="44" Margin="0,0,0,10" />
+                    <TextBlock Text="Arşivi buraya sürükleyin" Style="{StaticResource SubtitleTextBlockStyle}" HorizontalAlignment="Center" />
+                    <TextBlock Text="Arşiv olmayan dosya ve klasörlerden yeni arşiv oluşturulur." HorizontalAlignment="Center"
+                               Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center" Margin="0,14,0,0">
+                        <Button Style="{StaticResource AccentButtonStyle}" Content="Arşiv aç" Click="OnOpenClick" ToolTipService.ToolTip="Ctrl+O" />
+                        <Button Content="Arşiv oluştur" Click="OnCreateClick" ToolTipService.ToolTip="Ctrl+N" />
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Son açılanlar: düz liste, başlıkta iki düğme -->
+                <Grid Grid.Row="1" MaxWidth="880" Padding="24,12,24,16" RowSpacing="6"
+                      Visibility="{x:Bind ViewModel.HasRecent, Mode=OneWay}">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <Grid Padding="14,0,0,0">
+                        <TextBlock Text="Son açılanlar" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center" />
+                        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                            <Button Style="{StaticResource AccentButtonStyle}" Content="Arşiv aç" Click="OnOpenClick" ToolTipService.ToolTip="Ctrl+O" />
+                            <Button Content="Arşiv oluştur" Click="OnCreateClick" ToolTipService.ToolTip="Ctrl+N" />
+                        </StackPanel>
+                    </Grid>
+                    <ListView Grid.Row="1" ItemsSource="{x:Bind ViewModel.Recent}" IsItemClickEnabled="True" SelectionMode="None"
+                              ItemClick="OnRecentClick" ItemContainerStyle="{StaticResource ComfortRowStyle}">
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="services:RecentItem">
+                                <Grid ColumnSpacing="12" ToolTipService.ToolTip="{x:Bind Path}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" MaxWidth="360" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="84" />
+                                        <ColumnDefinition Width="110" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Glyph="&#xF012;" FontSize="15" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                    <TextBlock Grid.Column="1" Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="2" Text="{x:Bind Folder}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                                               Style="{StaticResource CaptionTextBlockStyle}" TextWrapping="NoWrap"
+                                               Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                                    <TextBlock Grid.Column="3" Text="{x:Bind SizeText}" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                               Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    <TextBlock Grid.Column="4" Text="{x:Bind DateText}" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                               Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </Grid>
+            </Grid>
+
+            <ProgressBar VerticalAlignment="Top" IsIndeterminate="True" Visibility="{x:Bind ViewModel.IsBusy, Mode=OneWay}" />
+
+            <!-- Kısa bildirim: hata, biten iş, uyarı (birkaç saniye sonra kendiliğinden kapanır) -->
+            <Border x:Name="ToastHost" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="16,0,16,16" MaxWidth="720"
+                    CornerRadius="6" Background="{ThemeResource SolidBackgroundFillColorQuarternaryBrush}"
+                    BorderBrush="{ThemeResource SurfaceStrokeColorFlyoutBrush}" BorderThickness="1"
+                    Visibility="{x:Bind Toast.IsOpen, Mode=OneWay}">
+                <InfoBar x:Name="Toast" IsClosable="True" IsOpen="False" Margin="0" />
+            </Border>
         </Grid>
     </Grid>
 </Window>
