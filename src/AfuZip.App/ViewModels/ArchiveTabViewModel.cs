@@ -13,6 +13,15 @@ public enum ExtractScope
     Selection,
 }
 
+/// <summary>Durum çubuğu yok: hatalar ve biten işler pencerenin altında kısa bir bildirimle gösterilir.</summary>
+public enum NoticeKind
+{
+    Info,
+    Success,
+    Warning,
+    Error,
+}
+
 /// <summary>
 /// Bir sekme: bir arşiv ve onun içinde açılmış iç içe arşivler (seviyeler). Her seviyenin kendi
 /// klasör ağacı ve konumu vardır; breadcrumb seviyeleri ve klasörleri birlikte gösterir.
@@ -36,6 +45,7 @@ public sealed class ArchiveTabViewModel(ArchiveOpener opener, TaskQueue tasks, I
 
     private string _archiveInfo = "";
     private string _summary = "";
+    private string _warning = "";
     private string _status = "";
     private string _searchText = "";
     private bool _isBusy;
@@ -50,8 +60,30 @@ public sealed class ArchiveTabViewModel(ArchiveOpener opener, TaskQueue tasks, I
 
     public string ArchiveInfo { get => _archiveInfo; private set => SetProperty(ref _archiveInfo, value); }
 
-    /// <summary>Durum çubuğu için tek satır: biçim, yöntem, solid, dosya sayısı, boyut ve oran.</summary>
+    /// <summary>Tek satır özet: biçim, yöntem, solid, dosya sayısı, boyut ve oran (arşiv bilgisinde).</summary>
     public string Summary { get => _summary; private set => SetProperty(ref _summary, value); }
+
+    /// <summary>7-Zip'in açılış uyarısı (eksik cilt, yarım indirme): sekmenin üstünde kalıcı uyarı olarak gösterilir.</summary>
+    public string Warning
+    {
+        get => _warning;
+        private set
+        {
+            if (SetProperty(ref _warning, value))
+                OnPropertyChanged(nameof(HasWarning));
+        }
+    }
+
+    public bool HasWarning => _warning.Length > 0;
+
+    /// <summary>Kullanıcının görmesi gereken bir sonuç (hata, uyarı).</summary>
+    public event Action<string, NoticeKind>? Notice;
+
+    private void Report(string message, NoticeKind kind = NoticeKind.Error)
+    {
+        Status = message;
+        Notice?.Invoke(message, kind);
+    }
     public string Status { get => _status; private set => SetProperty(ref _status, value); }
     public bool IsBusy { get => _isBusy; private set => SetProperty(ref _isBusy, value); }
 
@@ -80,6 +112,10 @@ public sealed class ArchiveTabViewModel(ArchiveOpener opener, TaskQueue tasks, I
     }
 
     public bool IsSearching => _searchText.Trim().Length > 0;
+
+    /// <summary>Liste boşken ortada gösterilen açıklama (boş klasör ya da sonuçsuz arama).</summary>
+    public bool IsListEmpty => HasArchive && Items.Count == 0;
+    public string EmptyText => IsSearching ? $"\"{_searchText.Trim()}\" bulunamadı" : "Bu klasör boş";
     public bool CanGoUp => _levels.Count > 1 || (_levels.Count == 1 && Current.Folder.Length > 0);
     public bool HasSelection => _selection.Count > 0;
 
@@ -198,11 +234,11 @@ public sealed class ArchiveTabViewModel(ArchiveOpener opener, TaskQueue tasks, I
         }
         catch (ArchivePasswordException ex)
         {
-            Status = ex.WasProvided ? "Parola yanlış." : "Parola girilmedi.";
+            Report(ex.WasProvided ? "Parola yanlış." : "Parola girilmedi.");
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            Status = $"İç arşiv açılamadı: {ex.Message}";
+            Report($"İç arşiv açılamadı: {ex.Message}");
         }
         finally
         {
@@ -214,7 +250,7 @@ public sealed class ArchiveTabViewModel(ArchiveOpener opener, TaskQueue tasks, I
     {
         if (ExecutableExtensions.Contains(Path.GetExtension(entry.Name)))
         {
-            Status = $"{entry.Name} bir program veya betik; güvenlik için doğrudan açılmaz. Önce çıkarın.";
+            Report($"{entry.Name} bir program veya betik; güvenlik için doğrudan açılmaz. Önce çıkarın.", NoticeKind.Warning);
             return;
         }
 
@@ -225,7 +261,7 @@ public sealed class ArchiveTabViewModel(ArchiveOpener opener, TaskQueue tasks, I
             var result = await Current.Reader.ExtractAsync([entry.Index], new ExtractionOptions(dir) { Passwords = passwords });
             if (result.Extracted != 1)
             {
-                Status = $"{entry.Name} açılamadı: {result.Failed.FirstOrDefault()?.Reason ?? result.Blocked.FirstOrDefault()?.Reason}";
+                Report($"{entry.Name} açılamadı: {result.Failed.FirstOrDefault()?.Reason ?? result.Blocked.FirstOrDefault()?.Reason}");
                 return;
             }
             var file = SafePath.ResolveTarget(dir, entry.Path);
@@ -235,7 +271,7 @@ public sealed class ArchiveTabViewModel(ArchiveOpener opener, TaskQueue tasks, I
         }
         catch (Exception ex) when (ex is IOException or System.ComponentModel.Win32Exception or ArchivePasswordException)
         {
-            Status = $"{entry.Name} açılamadı: {ex.Message}";
+            Report($"{entry.Name} açılamadı: {ex.Message}");
         }
         finally
         {
@@ -483,7 +519,7 @@ public sealed class ArchiveTabViewModel(ArchiveOpener opener, TaskQueue tasks, I
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            Status = $"Arşiv yeniden açılamadı: {ex.Message}";
+            Report($"Arşiv yeniden açılamadı: {ex.Message}");
         }
     }
 
@@ -594,7 +630,7 @@ public sealed class ArchiveTabViewModel(ArchiveOpener opener, TaskQueue tasks, I
     {
         if (!CanEdit)
         {
-            Status = "Arşiv şu an düzenlenemiyor (başka bir değişiklik sürüyor olabilir); biraz sonra tekrar deneyin.";
+            Report("Arşiv şu an düzenlenemiyor (başka bir değişiklik sürüyor olabilir); biraz sonra tekrar deneyin.", NoticeKind.Warning);
             return;
         }
         var pending = _edits.Where(e => e.IsPending).ToList();
@@ -703,6 +739,7 @@ public sealed class ArchiveTabViewModel(ArchiveOpener opener, TaskQueue tasks, I
             foreach (var item in results)
                 Items.Add(new EntryItem(item, showFullPath: true));
             Status = results.Count == 0 ? $"\"{query}\" bulunamadı." : $"\"{query}\": {results.Count:N0} sonuç";
+            NotifyListState();
         }
         catch (OperationCanceledException)
         {
@@ -717,6 +754,7 @@ public sealed class ArchiveTabViewModel(ArchiveOpener opener, TaskQueue tasks, I
         NotifyEditState();
         ArchiveInfo = DescribeArchive(reader);
         Summary = Summarize(reader);
+        Warning = reader.Warnings.FirstOrDefault() ?? "";
         RebuildFolderTree();
         Navigate("");
     }
@@ -730,6 +768,7 @@ public sealed class ArchiveTabViewModel(ArchiveOpener opener, TaskQueue tasks, I
         NotifyEditState();
         ArchiveInfo = DescribeArchive(Current.Reader);
         Summary = Summarize(Current.Reader);
+        Warning = Current.Reader.Warnings.FirstOrDefault() ?? "";
         RebuildFolderTree();
     }
 
@@ -742,7 +781,14 @@ public sealed class ArchiveTabViewModel(ArchiveOpener opener, TaskQueue tasks, I
             Items.Add(new EntryItem(item));
         _selection = [];
         OnPropertyChanged(nameof(HasSelection));
+        NotifyListState();
         ClearPreview();
+    }
+
+    private void NotifyListState()
+    {
+        OnPropertyChanged(nameof(IsListEmpty));
+        OnPropertyChanged(nameof(EmptyText));
     }
 
     private void RebuildBreadcrumb()

@@ -39,6 +39,15 @@ public sealed class AppSettings
     public ExtractHereMode ExtractHere { get; set; } = ExtractHereMode.Smart;
     public bool RevealAfterExtract { get; set; }
     public bool Notifications { get; set; } = true;
+
+    // Listede ad ve boyut her zaman görünür; diğer sütunlar Görünüm menüsünden açılır.
+    public bool ShowModifiedColumn { get; set; } = true;
+    public bool ShowRatioColumn { get; set; }
+    public bool ShowMethodColumn { get; set; }
+    public bool ShowPackedColumn { get; set; }
+
+    /// <summary>Başlangıç ekranındaki "Explorer'a ekleyin" önerisi kapatıldı.</summary>
+    public bool HideShellSuggestion { get; set; }
 }
 
 [JsonSerializable(typeof(AppSettings))]

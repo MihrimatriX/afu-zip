@@ -24,6 +24,7 @@ public sealed partial class MainWindow : Window
     private const string SettingsTag = "settings";
 
     private readonly Dictionary<object, FrameworkElement> _views = [];
+    private readonly Microsoft.UI.Dispatching.DispatcherQueueTimer _toastTimer;
     private bool _syncingSelection;
 
     public MainWindow(MainViewModel viewModel)
@@ -41,7 +42,7 @@ public sealed partial class MainWindow : Window
             HomeIcon.Source = TitleIcon.Source;
         }
         AppWindow.Resize(new Windows.Graphics.SizeInt32(1280, 820));
-        ShellSuggestion.IsOpen = !ShellIntegration.IsRegistered;
+        ShellSuggestion.IsOpen = !ShellIntegration.IsRegistered && !SettingsStore.Current.HideShellSuggestion;
         EngineWarning.IsOpen = !ViewModel.Engine.IsAvailable;
         Root.KeyboardAccelerators.Add(Accelerator(VirtualKeyModifiers.Control, (VirtualKey)188, OpenSettings)); // Ctrl+,
 
@@ -49,6 +50,11 @@ public sealed partial class MainWindow : Window
         SettingsStore.Changed += OnSettingsChanged;
         Root.Loaded += (_, _) => ReserveCaptionButtons();
         Root.SizeChanged += (_, _) => ReserveCaptionButtons();
+
+        _toastTimer = DispatcherQueue.CreateTimer();
+        _toastTimer.IsRepeating = false;
+        _toastTimer.Tick += (_, _) => Toast.IsOpen = false;
+        ViewModel.Notice += ShowToast;
 
         ViewModel.Tabs.CollectionChanged += OnTabsChanged;
         ViewModel.PropertyChanged += (_, e) =>
@@ -59,6 +65,8 @@ public sealed partial class MainWindow : Window
         Closed += async (_, _) =>
         {
             SettingsStore.Changed -= OnSettingsChanged;
+            ViewModel.Notice -= ShowToast;
+            _toastTimer.Stop();
             ViewModel.Tabs.CollectionChanged -= OnTabsChanged;
             foreach (var view in _views.Values.OfType<ArchiveView>())
                 view.Close();
@@ -79,6 +87,23 @@ public sealed partial class MainWindow : Window
     }
 
     private void OnSettingsChanged() => WindowTheme.Apply(this);
+
+    /// <summary>Durum çubuğunun yerine: alt ortada birkaç saniyelik bildirim. Hatalar daha uzun kalır.</summary>
+    private void ShowToast(string message, NoticeKind kind)
+    {
+        Toast.Severity = kind switch
+        {
+            NoticeKind.Success => InfoBarSeverity.Success,
+            NoticeKind.Warning => InfoBarSeverity.Warning,
+            NoticeKind.Error => InfoBarSeverity.Error,
+            _ => InfoBarSeverity.Informational,
+        };
+        Toast.Message = message;
+        Toast.IsOpen = true;
+        _toastTimer.Stop();
+        _toastTimer.Interval = TimeSpan.FromSeconds(kind is NoticeKind.Error or NoticeKind.Warning ? 9 : 4);
+        _toastTimer.Start();
+    }
 
     /// <summary>Simge durumuna küçült / kapat düğmeleri sekmelerin üstüne binmesin.</summary>
     private void ReserveCaptionButtons()
@@ -126,7 +151,7 @@ public sealed partial class MainWindow : Window
     {
         view.Visibility = Visibility.Collapsed;
         _views[key] = view;
-        ViewHost.Children.Insert(ViewHost.Children.Count - 1, view); // meşgul çubuğu en üstte kalsın
+        ViewHost.Children.Insert(ViewHost.Children.IndexOf(Home) + 1, view); // meşgul çubuğu ve bildirim üstte kalsın
     }
 
     private void RemoveTab(object key)
@@ -347,14 +372,18 @@ public sealed partial class MainWindow : Window
         {
             ShellIntegration.Register();
             ShellSuggestion.IsOpen = false;
-            ViewModel.SetStatus("Explorer'a eklendi: arşivlere ve dosyalara sağ tıklayın (Windows 11'de \"Daha fazla seçenek göster\").");
+            ShowToast("Explorer'a eklendi: arşivlere ve dosyalara sağ tıklayın (Windows 11'de \"Daha fazla seçenek göster\").", NoticeKind.Success);
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or System.Security.SecurityException)
         {
             AppLog.Error("Kabuk kaydı", ex);
-            ViewModel.SetStatus($"Kayıt defterine yazılamadı: {ex.Message}");
+            ShowToast($"Kayıt defterine yazılamadı: {ex.Message}", NoticeKind.Error);
         }
     }
+
+    /// <summary>Öneri kapatıldıysa bir daha gösterilmez (Ayarlar'dan her zaman eklenebilir).</summary>
+    private void OnSuggestionClosed(InfoBar sender, object args) =>
+        SettingsStore.Update(x => x.HideShellSuggestion = true, notify: false);
 
     // --- Görevler --------------------------------------------------------------------------------
 
