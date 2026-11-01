@@ -24,6 +24,9 @@
             </Style>
             <Style x:Key="Secondary" TargetType="TextBlock" BasedOn="{StaticResource CaptionTextBlockStyle}">
                 <Setter Property="Margin" Value="12,0,0,0" />
+                <!-- Caption stili kaydırmalı: gizlenen (0 genişlikli) sütunda her harf bir satıra düşüp satırı uzatıyordu -->
+                <Setter Property="TextWrapping" Value="NoWrap" />
+                <Setter Property="MaxLines" Value="1" />
                 <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
                 <Setter Property="VerticalAlignment" Value="Center" />
                 <Setter Property="TextTrimming" Value="CharacterEllipsis" />

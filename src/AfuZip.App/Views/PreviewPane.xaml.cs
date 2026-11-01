@@ -45,6 +45,20 @@ public sealed partial class PreviewPane : UserControl
             }
         };
         ActualThemeChanged += (_, _) => _web?.SetTheme(ActualTheme == ElementTheme.Dark);
+        // BitmapImage görünüm modelinde çözülüp hazır atanır; bu durumda ImageOpened gelmeyebilir. Yeni resim
+        // gelince ya da resim yüzeyi açılınca sığdırılır.
+        ViewModel.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(PreviewViewModel.Image))
+            {
+                _fitted = true;
+                ApplyImageSize();
+            }
+            else if (e.PropertyName == nameof(PreviewViewModel.IsImageVisible))
+            {
+                ApplyImageSize();
+            }
+        };
         // Ayraç sürüklenince, pencere büyüyünce ya da panel ilk kez görünür olunca sığdırma yeniden hesaplanır.
         ImageScroller.SizeChanged += (_, _) =>
         {
@@ -125,7 +139,7 @@ public sealed partial class PreviewPane : UserControl
 
     private void ApplyImageSize()
     {
-        if (PreviewImage.Source is not BitmapImage { PixelWidth: > 0, PixelHeight: > 0 } bitmap)
+        if (ViewModel.Image is not BitmapImage { PixelWidth: > 0, PixelHeight: > 0 } bitmap)
             return;
 
         if (_fitted)
