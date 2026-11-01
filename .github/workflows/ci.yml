@@ -148,6 +148,30 @@ jobs:
           if ($LASTEXITCODE) { throw "Kurulum programı derlenemedi" }
           Get-ChildItem artifacts/*.exe | Format-Table Name, Length
 
+      # Kurulum programının kendisi: sessiz kurulum → dosyalar ve Explorer kaydı yerinde mi, kaldırınca temizleniyor mu.
+      - name: Kurulum programı (sessiz kur ve kaldır)
+        shell: pwsh
+        run: |
+          $setup = (Get-ChildItem artifacts/AfuZip-*-setup-x64.exe | Select-Object -First 1).FullName
+          $p = Start-Process -FilePath $setup -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER' -PassThru -Wait
+          if ($p.ExitCode -ne 0) { throw "Kurulum çıkış kodu $($p.ExitCode)" }
+          $app = Join-Path $env:LOCALAPPDATA 'Programs\AFU Zip'
+          foreach ($f in 'AfuZip.exe', 'AfuZip.ShellExtension.dll', 'unins000.exe') {
+            if (-not (Test-Path (Join-Path $app $f))) { throw "Kurulumda eksik: $f" }
+          }
+          $handler = (Get-ItemProperty -LiteralPath 'HKCU:\Software\Classes\*\shell\AfuZip').ExplorerCommandHandler
+          if (-not $handler) { throw "Kurulum Explorer menüsünü eklemedi" }
+          $registered = (Get-ItemProperty -LiteralPath 'HKCU:\Software\AfuZip').ShellExePath
+          if ($registered -ne (Join-Path $app 'AfuZip.exe')) { throw "Menü yanlış exe'yi gösteriyor: $registered" }
+          if (-not (Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\AFU Zip.lnk")) { throw "Başlat menüsü kısayolu yok" }
+          Write-Host "Kuruldu: $app"
+          $u = Start-Process -FilePath (Join-Path $app 'unins000.exe') -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -PassThru -Wait
+          if ($u.ExitCode -ne 0) { throw "Kaldırma çıkış kodu $($u.ExitCode)" }
+          Start-Sleep -Seconds 3
+          if (Test-Path -LiteralPath 'HKCU:\Software\Classes\*\shell\AfuZip') { throw "Kaldırınca Explorer menüsü kaldı" }
+          if (Test-Path (Join-Path $app 'AfuZip.exe')) { throw "Kaldırınca program dosyaları kaldı" }
+          Write-Host "Kurulum ve kaldırma çalıştı"
+
   linux:
     # Yönetilen motor ve güvenlik testleri platformdan bağımsızdır.
     runs-on: ubuntu-latest
