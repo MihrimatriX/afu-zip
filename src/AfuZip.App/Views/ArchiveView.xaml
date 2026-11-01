@@ -23,6 +23,7 @@
                 <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
             </Style>
             <Style x:Key="Secondary" TargetType="TextBlock" BasedOn="{StaticResource CaptionTextBlockStyle}">
+                <Setter Property="Margin" Value="12,0,0,0" />
                 <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
                 <Setter Property="VerticalAlignment" Value="Center" />
                 <Setter Property="TextTrimming" Value="CharacterEllipsis" />
@@ -85,14 +86,14 @@
                 </AppBarButton>
                 <AppBarButton Icon="Delete" Label="Sil" Click="OnDelete" IsEnabled="{x:Bind ViewModel.CanDelete, Mode=OneWay}"
                               ToolTipService.ToolTip="Seçilenleri arşivden sil (Del)" />
-                <AppBarButton Icon="Rename" Label="Yeniden adlandır" LabelPosition="Collapsed" Click="OnRename"
+                <AppBarButton Icon="Rename" Label="Yeniden adlandır" LabelPosition="Collapsed" Width="44" Click="OnRename"
                               IsEnabled="{x:Bind ViewModel.CanRename, Mode=OneWay}" ToolTipService.ToolTip="Yeniden adlandır (F2)" />
                 <AppBarButton Label="Test" Click="OnTest" IsEnabled="{x:Bind ViewModel.HasArchive, Mode=OneWay}"
                               ToolTipService.ToolTip="Arşivi bozulmaya karşı test et">
                     <AppBarButton.Icon><FontIcon Glyph="&#xE9D5;" /></AppBarButton.Icon>
                 </AppBarButton>
                 <AppBarSeparator />
-                <AppBarButton Icon="Up" Label="Yukarı" LabelPosition="Collapsed" Click="OnUp"
+                <AppBarButton Icon="Up" Label="Yukarı" LabelPosition="Collapsed" Width="44" Click="OnUp"
                               IsEnabled="{x:Bind ViewModel.CanGoUp, Mode=OneWay}" ToolTipService.ToolTip="Üst klasör (Alt+Yukarı)" />
             </CommandBar>
 
@@ -117,11 +118,34 @@
 
             <CommandBar Grid.Column="3" Background="Transparent" DefaultLabelPosition="Collapsed" IsDynamicOverflowEnabled="False"
                         OverflowButtonVisibility="Collapsed" VerticalAlignment="Center">
-                <AppBarToggleButton Label="Önizleme" ToolTipService.ToolTip="Önizleme (Alt+P)"
+                <!-- Açık önizleme düğmesi dolu mavi kutu yerine hafif zemin ve vurgu renkli simgeyle gösterilir -->
+                <CommandBar.Resources>
+                    <ResourceDictionary>
+                        <ResourceDictionary.ThemeDictionaries>
+                            <ResourceDictionary x:Key="Default">
+                                <StaticResource x:Key="AppBarToggleButtonBackgroundChecked" ResourceKey="SubtleFillColorSecondaryBrush" />
+                                <StaticResource x:Key="AppBarToggleButtonBackgroundCheckedPointerOver" ResourceKey="SubtleFillColorTertiaryBrush" />
+                                <StaticResource x:Key="AppBarToggleButtonBackgroundCheckedPressed" ResourceKey="SubtleFillColorTertiaryBrush" />
+                                <StaticResource x:Key="AppBarToggleButtonForegroundChecked" ResourceKey="AccentTextFillColorPrimaryBrush" />
+                                <StaticResource x:Key="AppBarToggleButtonForegroundCheckedPointerOver" ResourceKey="AccentTextFillColorPrimaryBrush" />
+                                <StaticResource x:Key="AppBarToggleButtonForegroundCheckedPressed" ResourceKey="AccentTextFillColorSecondaryBrush" />
+                            </ResourceDictionary>
+                            <ResourceDictionary x:Key="Light">
+                                <StaticResource x:Key="AppBarToggleButtonBackgroundChecked" ResourceKey="SubtleFillColorSecondaryBrush" />
+                                <StaticResource x:Key="AppBarToggleButtonBackgroundCheckedPointerOver" ResourceKey="SubtleFillColorTertiaryBrush" />
+                                <StaticResource x:Key="AppBarToggleButtonBackgroundCheckedPressed" ResourceKey="SubtleFillColorTertiaryBrush" />
+                                <StaticResource x:Key="AppBarToggleButtonForegroundChecked" ResourceKey="AccentTextFillColorPrimaryBrush" />
+                                <StaticResource x:Key="AppBarToggleButtonForegroundCheckedPointerOver" ResourceKey="AccentTextFillColorPrimaryBrush" />
+                                <StaticResource x:Key="AppBarToggleButtonForegroundCheckedPressed" ResourceKey="AccentTextFillColorSecondaryBrush" />
+                            </ResourceDictionary>
+                        </ResourceDictionary.ThemeDictionaries>
+                    </ResourceDictionary>
+                </CommandBar.Resources>
+                <AppBarToggleButton Label="Önizleme" Width="44" ToolTipService.ToolTip="Önizleme (Alt+P)"
                                     IsChecked="{x:Bind ViewModel.IsPreviewVisible, Mode=TwoWay}">
                     <AppBarToggleButton.Icon><FontIcon Glyph="&#xE8A1;" /></AppBarToggleButton.Icon>
                 </AppBarToggleButton>
-                <AppBarButton Label="Arşiv bilgisi" ToolTipService.ToolTip="Arşiv bilgisi">
+                <AppBarButton Label="Arşiv bilgisi" Width="44" ToolTipService.ToolTip="Arşiv bilgisi">
                     <AppBarButton.Icon><FontIcon Glyph="&#xE946;" /></AppBarButton.Icon>
                     <AppBarButton.Flyout>
                         <Flyout Placement="BottomEdgeAlignedRight">
@@ -133,7 +157,7 @@
                         </Flyout>
                     </AppBarButton.Flyout>
                 </AppBarButton>
-                <AppBarButton Label="Görünüm" ToolTipService.ToolTip="Görünüm">
+                <AppBarButton Label="Görünüm" Width="44" ToolTipService.ToolTip="Görünüm">
                     <AppBarButton.Icon><FontIcon Glyph="&#xE712;" /></AppBarButton.Icon>
                     <AppBarButton.Flyout>
                         <MenuFlyout x:Name="ViewMenu" Placement="BottomEdgeAlignedRight" Opening="OnViewMenuOpening">
@@ -189,34 +213,35 @@
 
             <!-- Liste ve önizleme: satır/sütun tanımları ApplyLayout'ta (altta ya da sağda) -->
             <Grid x:Name="ContentArea" Grid.Column="2">
-                <Grid x:Name="ListPane">
+                <Grid x:Name="ListPane" SizeChanged="OnListPaneSizeChanged">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
                     <!-- Sıralanabilir kolon başlıkları: tıklayınca sırala, tekrar tıklayınca yönü değiştir -->
-                    <Grid Height="30" Padding="14,0,16,0" ColumnSpacing="12"
+                    <!-- Dar alanda sütunlar öncelik sırasıyla gizlenir (UpdateColumns); satırlar aynı genişlikleri alır -->
+                    <Grid x:Name="HeaderGrid" Height="30" Padding="14,0,16,0"
                           BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="84" />
-                            <ColumnDefinition Width="84" />
-                            <ColumnDefinition Width="52" />
-                            <ColumnDefinition Width="120" />
-                            <ColumnDefinition Width="128" />
+                            <ColumnDefinition Width="96" />
+                            <ColumnDefinition Width="96" />
+                            <ColumnDefinition Width="64" />
+                            <ColumnDefinition Width="132" />
+                            <ColumnDefinition Width="140" />
                         </Grid.ColumnDefinitions>
                         <Button Style="{StaticResource HeaderButton}" HorizontalContentAlignment="Left" Tag="Name" Click="OnSortClick"
                                 Content="{x:Bind ViewModel.NameHeader, Mode=OneWay}" />
-                        <Button Grid.Column="1" Style="{StaticResource HeaderButton}" HorizontalContentAlignment="Right" Tag="Size" Click="OnSortClick"
+                        <Button Grid.Column="1" Margin="12,0,0,0" Style="{StaticResource HeaderButton}" HorizontalContentAlignment="Right" Tag="Size" Click="OnSortClick"
                                 Content="{x:Bind ViewModel.SizeHeader, Mode=OneWay}" />
-                        <Button Grid.Column="2" Style="{StaticResource HeaderButton}" HorizontalContentAlignment="Right" Tag="PackedSize" Click="OnSortClick"
+                        <Button Grid.Column="2" Margin="12,0,0,0" Style="{StaticResource HeaderButton}" HorizontalContentAlignment="Right" Tag="PackedSize" Click="OnSortClick"
                                 Content="{x:Bind ViewModel.PackedHeader, Mode=OneWay}" />
-                        <Button Grid.Column="3" Style="{StaticResource HeaderButton}" HorizontalContentAlignment="Right" Tag="Ratio" Click="OnSortClick"
+                        <Button Grid.Column="3" Margin="12,0,0,0" Style="{StaticResource HeaderButton}" HorizontalContentAlignment="Right" Tag="Ratio" Click="OnSortClick"
                                 Content="{x:Bind ViewModel.RatioHeader, Mode=OneWay}" />
-                        <Button Grid.Column="4" Style="{StaticResource HeaderButton}" HorizontalContentAlignment="Left" Tag="Method" Click="OnSortClick"
+                        <Button Grid.Column="4" Margin="12,0,0,0" Style="{StaticResource HeaderButton}" HorizontalContentAlignment="Left" Tag="Method" Click="OnSortClick"
                                 Content="{x:Bind ViewModel.MethodHeader, Mode=OneWay}" />
-                        <Button Grid.Column="5" Style="{StaticResource HeaderButton}" HorizontalContentAlignment="Left" Tag="Modified" Click="OnSortClick"
+                        <Button Grid.Column="5" Margin="12,0,0,0" Style="{StaticResource HeaderButton}" HorizontalContentAlignment="Left" Tag="Modified" Click="OnSortClick"
                                 Content="{x:Bind ViewModel.ModifiedHeader, Mode=OneWay}" />
                     </Grid>
 
@@ -228,18 +253,19 @@
                               SelectionChanged="OnSelectionChanged"
                               DoubleTapped="OnItemDoubleTapped"
                               KeyDown="OnListKeyDown"
+                              ContainerContentChanging="OnContainerContentChanging"
                               CanDragItems="True" DragItemsStarting="OnDragItemsStarting"
                               AllowDrop="True" DragOver="OnListDragOver" Drop="OnListDrop">
                         <ListView.ItemTemplate>
                             <DataTemplate x:DataType="vm:EntryItem">
-                                <Grid ColumnSpacing="12" ToolTipService.ToolTip="{x:Bind ToolTip}">
+                                <Grid ToolTipService.ToolTip="{x:Bind ToolTip}">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="84" />
-                                        <ColumnDefinition Width="84" />
-                                        <ColumnDefinition Width="52" />
-                                        <ColumnDefinition Width="120" />
-                                        <ColumnDefinition Width="128" />
+                                        <ColumnDefinition Width="96" />
+                                        <ColumnDefinition Width="96" />
+                                        <ColumnDefinition Width="64" />
+                                        <ColumnDefinition Width="132" />
+                                        <ColumnDefinition Width="140" />
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                                         <Grid Width="16">
