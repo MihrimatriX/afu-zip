@@ -74,7 +74,7 @@ internal sealed class FileSystemSink(ExtractionSession session, IReadOnlyList<Ar
     }
 }
 
-/// <summary>Önizleme için tek girdiyi belleğe veya geçici dosyaya açar.</summary>
+/// <summary>Tek girdiyi belleğe veya geçici dosyaya açar (iç içe arşiv, OpenEntryAsync).</summary>
 internal sealed class SingleEntrySink(ArchiveEntry entry) : IExtractSink
 {
     private const long InMemoryLimit = 64L * 1024 * 1024;
@@ -140,7 +140,7 @@ internal sealed class TestSink(TestResult result, IReadOnlyList<ArchiveEntry> en
     }
 }
 
-/// <summary><see cref="IEntryReceiver"/>'ı 7-Zip'in girdi akışına bağlar (önizleme önbelleğinin blok açması).</summary>
+/// <summary><see cref="IEntryReceiver"/>'ı 7-Zip'in girdi akışına bağlar (bir bloğun birden çok girdisini tek geçişte okumak için).</summary>
 internal sealed class ReceiverSink(IEntryReceiver receiver, IReadOnlyList<ArchiveEntry> entries) : IExtractSink
 {
     private int _active = -1;

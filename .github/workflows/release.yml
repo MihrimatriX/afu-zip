@@ -55,12 +55,6 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: src/AfuZip.Preview.Web/package-lock.json
-
       # .NET ve Windows App SDK pakete dahil: hedef bilgisayarda hiçbir şey kurulu olmasa da çalışır.
       - name: Yayımla
         run: dotnet publish src/AfuZip.App -c Release -p:Platform=${{ matrix.platform }} -r ${{ matrix.rid }} --self-contained true -o publish/AfuZip
@@ -68,7 +62,7 @@ jobs:
       - name: Paketi denetle ve sıkıştır
         shell: pwsh
         run: |
-          foreach ($f in 'AfuZip.exe', 'PreviewWeb/index.html', 'Assets/AfuZip.ico') {
+          foreach ($f in 'AfuZip.exe', 'Assets/AfuZip.ico') {
             if (-not (Test-Path "publish/AfuZip/$f")) { throw "Pakette eksik: $f" }
           }
           Compress-Archive -Path publish/AfuZip -DestinationPath "AfuZip-${{ needs.version.outputs.tag }}-${{ matrix.rid }}.zip"

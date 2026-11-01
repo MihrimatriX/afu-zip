@@ -21,7 +21,6 @@ public sealed partial class SettingsView : UserControl
 
         var s = SettingsStore.Current;
         ThemeBox.SelectedIndex = (int)s.Theme;
-        PreviewBox.SelectedIndex = (int)s.Preview;
         TreeToggle.IsOn = s.ShowFolderTree;
         CompactToggle.IsOn = s.CompactRows;
         foreach (var preset in CompressionPreset.All)
@@ -39,7 +38,6 @@ public sealed partial class SettingsView : UserControl
 
         // Olaylar ilk değerler atandıktan sonra bağlanır; yoksa açılışta her biri "değişti" sayılırdı.
         ThemeBox.SelectionChanged += (_, _) => SettingsStore.Update(x => x.Theme = (ThemeChoice)ThemeBox.SelectedIndex);
-        PreviewBox.SelectionChanged += (_, _) => SettingsStore.Update(x => x.Preview = (PreviewPlacement)PreviewBox.SelectedIndex);
         TreeToggle.Toggled += (_, _) => SettingsStore.Update(x => x.ShowFolderTree = TreeToggle.IsOn);
         CompactToggle.Toggled += (_, _) => SettingsStore.Update(x => x.CompactRows = CompactToggle.IsOn);
         PresetBox.SelectionChanged += (_, _) =>

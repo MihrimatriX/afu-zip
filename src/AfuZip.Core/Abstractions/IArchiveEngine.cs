@@ -55,7 +55,7 @@ public interface IArchiveReader : IAsyncDisposable
     /// </summary>
     IReadOnlyList<string> Warnings => [];
 
-    /// <summary>Önizleme için tek bir girdiyi diske yazmadan, başa sarılmış ve seek edilebilir bir stream olarak açar.</summary>
+    /// <summary>Tek bir girdiyi diske yazmadan, başa sarılmış ve seek edilebilir bir stream olarak açar.</summary>
     Task<Stream> OpenEntryAsync(int index, CancellationToken ct = default);
 
     /// <summary>

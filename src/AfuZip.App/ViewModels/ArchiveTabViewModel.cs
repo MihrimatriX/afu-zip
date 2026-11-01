@@ -2,7 +2,6 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using AfuZip.App.Services;
 using AfuZip.Core;
-using AfuZip.Core.Preview;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace AfuZip.App.ViewModels;
@@ -26,7 +25,7 @@ public enum NoticeKind
 /// Bir sekme: bir arşiv ve onun içinde açılmış iç içe arşivler (seviyeler). Her seviyenin kendi
 /// klasör ağacı ve konumu vardır; breadcrumb seviyeleri ve klasörleri birlikte gösterir.
 /// </summary>
-public sealed class ArchiveTabViewModel(ArchiveOpener opener, TaskQueue tasks, IPasswordProvider passwords, PreviewCache previewCache)
+public sealed class ArchiveTabViewModel(ArchiveOpener opener, TaskQueue tasks, IPasswordProvider passwords)
     : ObservableObject, IAsyncDisposable
 {
     // Çift tıklamayla doğrudan çalıştırılmayacak türler: önce çıkarılmaları gerekir.
@@ -49,7 +48,6 @@ public sealed class ArchiveTabViewModel(ArchiveOpener opener, TaskQueue tasks, I
     private string _status = "";
     private string _searchText = "";
     private bool _isBusy;
-    private bool _isPreviewVisible = SettingsStore.Current.Preview != PreviewPlacement.Hidden;
 
     public string ArchivePath { get; private set; } = "";
     public string Title => Path.GetFileName(ArchivePath);
@@ -86,20 +84,6 @@ public sealed class ArchiveTabViewModel(ArchiveOpener opener, TaskQueue tasks, I
     }
     public string Status { get => _status; private set => SetProperty(ref _status, value); }
     public bool IsBusy { get => _isBusy; private set => SetProperty(ref _isBusy, value); }
-
-    /// <summary>Sekmenin önizleme paneli; seçim değişince o girdiyi gösterir.</summary>
-    public PreviewViewModel Preview { get; } = new(previewCache);
-
-    public bool IsPreviewVisible
-    {
-        get => _isPreviewVisible;
-        set
-        {
-            // Panel açılınca seçili dosya önizlenir, kapanınca açık önizleme (video, WebView) bırakılır.
-            if (SetProperty(ref _isPreviewVisible, value))
-                _ = UpdatePreviewAsync();
-        }
-    }
 
     public string SearchText
     {
@@ -279,33 +263,15 @@ public sealed class ArchiveTabViewModel(ArchiveOpener opener, TaskQueue tasks, I
         }
     }
 
-    // --- Seçim ve önizleme -----------------------------------------------------------------------
+    // --- Seçim ------------------------------------------------------------------------------------
 
-    public async Task SelectAsync(IReadOnlyList<EntryItem> selection)
+    public void Select(IReadOnlyList<EntryItem> selection)
     {
         _selection = selection;
         OnPropertyChanged(nameof(HasSelection));
         OnPropertyChanged(nameof(CanDelete));
         OnPropertyChanged(nameof(CanRename));
         UpdateSelectionStatus();
-        await UpdatePreviewAsync();
-    }
-
-    private async Task UpdatePreviewAsync()
-    {
-        if (_levels.Count == 0 || _selection.Count != 1 || !IsPreviewVisible)
-        {
-            Preview.Clear();
-            return;
-        }
-
-        var item = _selection[0];
-        if (item.IsFolder)
-            Preview.ShowFolder(item.Name, Current.Tree.StatsOf(item.Path.TrimEnd('/')));
-        else if (item.Entry is { } entry)
-            await Preview.ShowAsync(Current.Reader, entry);
-        else
-            Preview.Clear();
     }
 
     // --- Görevler --------------------------------------------------------------------------------
@@ -375,7 +341,7 @@ public sealed class ArchiveTabViewModel(ArchiveOpener opener, TaskQueue tasks, I
 
     /// <summary>
     /// En üst seviyedeki gerçek dosya için görevlere ayrı bir okuyucu açılır; böylece uzun bir çıkarma
-    /// sürerken sekmede gezinme ve önizleme beklemez. İç içe arşivlerde mevcut okuyucu kullanılır.
+    /// sürerken sekmede gezinme beklemez. İç içe arşivlerde mevcut okuyucu kullanılır.
     /// </summary>
     private async Task<T> WithTaskReaderAsync<T>(Level level, Func<IArchiveReader, Task<T>> work, CancellationToken ct)
     {
@@ -489,12 +455,8 @@ public sealed class ArchiveTabViewModel(ArchiveOpener opener, TaskQueue tasks, I
     {
         try
         {
-            Preview.Clear();
             for (var i = _levels.Count - 1; i >= 0; i--)
-            {
-                Preview.Release(_levels[i].Reader);
                 await _levels[i].Reader.DisposeAsync();
-            }
         }
         finally
         {
@@ -763,7 +725,6 @@ public sealed class ArchiveTabViewModel(ArchiveOpener opener, TaskQueue tasks, I
     {
         var top = _levels[^1];
         _levels.RemoveAt(_levels.Count - 1);
-        Preview.Release(top.Reader);
         await top.Reader.DisposeAsync();
         NotifyEditState();
         ArchiveInfo = DescribeArchive(Current.Reader);
@@ -782,7 +743,6 @@ public sealed class ArchiveTabViewModel(ArchiveOpener opener, TaskQueue tasks, I
         _selection = [];
         OnPropertyChanged(nameof(HasSelection));
         NotifyListState();
-        ClearPreview();
     }
 
     private void NotifyListState()
@@ -823,8 +783,6 @@ public sealed class ArchiveTabViewModel(ArchiveOpener opener, TaskQueue tasks, I
         var size = _selection.Sum(s => s.Item.Size);
         Status = $"{_selection.Count:N0} öğe seçili · {ByteSize.Format(size)}";
     }
-
-    private void ClearPreview() => Preview.Clear();
 
     private string Header(string label, SortColumn column) =>
         _sort == column ? $"{label} {(_descending ? "▼" : "▲")}" : label;
@@ -893,7 +851,6 @@ public sealed class ArchiveTabViewModel(ArchiveOpener opener, TaskQueue tasks, I
         foreach (var edit in _edits)
             edit.Dispose();
         _edits.Clear();
-        Preview.Clear();
         _searchCts?.Cancel();
 
         // Bu sekmenin okuyucusunu kullanan görevler bitmeden okuyucu kapatılmamalı.
@@ -908,10 +865,7 @@ public sealed class ArchiveTabViewModel(ArchiveOpener opener, TaskQueue tasks, I
         }
 
         for (var i = _levels.Count - 1; i >= 0; i--)
-        {
-            Preview.Release(_levels[i].Reader);
             await _levels[i].Reader.DisposeAsync();
-        }
         _levels.Clear();
     }
 
@@ -930,9 +884,20 @@ internal static class TempFolders
 
     public static string DragRoot => Path.Combine(Path.GetTempPath(), "AfuZip", "drag");
 
+    // 0.5 ve öncesinin önizleme önbelleği; artık kullanılmıyor, kalıntısı silinir.
+    private static string LegacyPreviewRoot => Path.Combine(Path.GetTempPath(), "AfuZip", "preview");
+
     public static void CleanupStale(TimeSpan olderThan)
     {
         NestedArchive.CleanupStale(olderThan);
+        try
+        {
+            if (Directory.Exists(LegacyPreviewRoot))
+                Directory.Delete(LegacyPreviewRoot, recursive: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+        }
         foreach (var dir in new[] { OpenRoot, DragRoot }.Where(Directory.Exists).SelectMany(Directory.EnumerateDirectories))
         {
             try

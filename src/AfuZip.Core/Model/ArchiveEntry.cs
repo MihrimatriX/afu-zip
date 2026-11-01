@@ -15,7 +15,7 @@ public sealed record ArchiveEntry(
     int? Block = null)
 {
     // Block: solid arşivde girdinin ait olduğu sıkıştırma bloğu (7z "folder"). Aynı bloktaki bir dosyayı açmak,
-    // bloğun o dosyadan önceki kısmını da çözmeyi gerektirir; önizleme önbelleği bloğu topluca açar.
+    // bloğun o dosyadan önceki kısmını da çözmeyi gerektirir.
 
     public string Name
     {

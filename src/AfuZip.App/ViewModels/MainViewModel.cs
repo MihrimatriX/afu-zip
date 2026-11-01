@@ -1,7 +1,6 @@
 using System.Collections.ObjectModel;
 using AfuZip.App.Services;
 using AfuZip.Core;
-using AfuZip.Core.Preview;
 using AfuZip.Engine.SevenZip;
 using CommunityToolkit.Mvvm.ComponentModel;
 
@@ -14,7 +13,6 @@ public sealed class MainViewModel : ObservableObject
     private readonly TaskQueue _queue;
     private readonly UiPasswordProvider _passwords;
     private readonly RecentArchives _recent;
-    private readonly PreviewCache _previewCache;
     private readonly EngineRouter _router;
     private readonly SevenZipEngine _sevenZip;
 
@@ -23,9 +21,8 @@ public sealed class MainViewModel : ObservableObject
     private bool _isBusy;
 
     public MainViewModel(ArchiveOpener opener, TaskQueue queue, UiPasswordProvider passwords, RecentArchives recent,
-        PreviewCache previewCache, EngineRouter router, SevenZipEngine sevenZip)
+        EngineRouter router, SevenZipEngine sevenZip)
     {
-        _previewCache = previewCache;
         _router = router;
         _sevenZip = sevenZip;
         _opener = opener;
@@ -112,7 +109,7 @@ public sealed class MainViewModel : ObservableObject
 
         IsBusy = true;
         Status = $"Açılıyor: {Path.GetFileName(path)}";
-        var tab = new ArchiveTabViewModel(_opener, _queue, _passwords, _previewCache);
+        var tab = new ArchiveTabViewModel(_opener, _queue, _passwords);
         tab.Notice += OnTabNotice;
         try
         {
@@ -225,7 +222,6 @@ public sealed class MainViewModel : ObservableObject
         catch (TimeoutException)
         {
         }
-        _previewCache.Dispose(); // önizleme geçici klasörünü sil
     }
 
     private void RememberRecent(string path)

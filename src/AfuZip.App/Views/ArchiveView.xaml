@@ -7,7 +7,7 @@
     xmlns:views="using:AfuZip.App.Views">
 
     <!--
-        Sade düzen: simge komutlar · konum · arama/önizleme/menü tek satırda, altında liste ve önizleme.
+        Sade düzen: simge komutlar · konum · arama/menü tek satırda, altında liste.
         Seyrek kullanılanlar (yeniden adlandır, sütunlar, arşiv bilgisi) sağ tık ve ⋯ menüsünde.
     -->
     <Grid x:Name="Root" Background="{ThemeResource ChromeBrush}" KeyboardAcceleratorPlacementMode="Hidden">
@@ -36,7 +36,6 @@
         <Grid.KeyboardAccelerators>
             <KeyboardAccelerator Modifiers="Control" Key="F" Invoked="OnFocusSearch" />
             <KeyboardAccelerator Modifiers="Control" Key="E" Invoked="OnExtractHereAccelerator" />
-            <KeyboardAccelerator Modifiers="Menu" Key="P" Invoked="OnTogglePreviewAccelerator" />
             <KeyboardAccelerator Modifiers="Menu" Key="Up" Invoked="OnUpAccelerator" />
         </Grid.KeyboardAccelerators>
 
@@ -46,7 +45,7 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Tek satır: ↓ + 🗑 ✓ │ konum │ 🔍 ◫ ⋯ -->
+        <!-- Tek satır: ↓ + 🗑 ✓ │ konum │ 🔍 ⋯ -->
         <Grid Padding="4,0,4,0" Height="44" ColumnSpacing="4">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
@@ -102,45 +101,15 @@
 
             <CommandBar Grid.Column="3" Background="Transparent" DefaultLabelPosition="Collapsed" IsDynamicOverflowEnabled="False"
                         OverflowButtonVisibility="Collapsed" VerticalAlignment="Center">
-                <!-- Açık önizleme düğmesi dolu mavi kutu yerine hafif zemin ve vurgu renkli simgeyle gösterilir -->
-                <CommandBar.Resources>
-                    <ResourceDictionary>
-                        <ResourceDictionary.ThemeDictionaries>
-                            <ResourceDictionary x:Key="Default">
-                                <StaticResource x:Key="AppBarToggleButtonBackgroundChecked" ResourceKey="SubtleFillColorSecondaryBrush" />
-                                <StaticResource x:Key="AppBarToggleButtonBackgroundCheckedPointerOver" ResourceKey="SubtleFillColorTertiaryBrush" />
-                                <StaticResource x:Key="AppBarToggleButtonBackgroundCheckedPressed" ResourceKey="SubtleFillColorTertiaryBrush" />
-                                <StaticResource x:Key="AppBarToggleButtonForegroundChecked" ResourceKey="AccentTextFillColorPrimaryBrush" />
-                                <StaticResource x:Key="AppBarToggleButtonForegroundCheckedPointerOver" ResourceKey="AccentTextFillColorPrimaryBrush" />
-                                <StaticResource x:Key="AppBarToggleButtonForegroundCheckedPressed" ResourceKey="AccentTextFillColorSecondaryBrush" />
-                            </ResourceDictionary>
-                            <ResourceDictionary x:Key="Light">
-                                <StaticResource x:Key="AppBarToggleButtonBackgroundChecked" ResourceKey="SubtleFillColorSecondaryBrush" />
-                                <StaticResource x:Key="AppBarToggleButtonBackgroundCheckedPointerOver" ResourceKey="SubtleFillColorTertiaryBrush" />
-                                <StaticResource x:Key="AppBarToggleButtonBackgroundCheckedPressed" ResourceKey="SubtleFillColorTertiaryBrush" />
-                                <StaticResource x:Key="AppBarToggleButtonForegroundChecked" ResourceKey="AccentTextFillColorPrimaryBrush" />
-                                <StaticResource x:Key="AppBarToggleButtonForegroundCheckedPointerOver" ResourceKey="AccentTextFillColorPrimaryBrush" />
-                                <StaticResource x:Key="AppBarToggleButtonForegroundCheckedPressed" ResourceKey="AccentTextFillColorSecondaryBrush" />
-                            </ResourceDictionary>
-                        </ResourceDictionary.ThemeDictionaries>
-                    </ResourceDictionary>
-                </CommandBar.Resources>
                 <AppBarButton x:Name="SearchButton" Icon="Find" Label="Ara" Width="44" Click="OnSearchButtonClick"
                               ToolTipService.ToolTip="Ara (Ctrl+F)" />
-                <AppBarToggleButton Label="Önizleme" Width="44" ToolTipService.ToolTip="Önizleme (Alt+P)"
-                                    IsChecked="{x:Bind ViewModel.IsPreviewVisible, Mode=TwoWay}">
-                    <AppBarToggleButton.Icon><FontIcon Glyph="&#xE8A1;" /></AppBarToggleButton.Icon>
-                </AppBarToggleButton>
-                <AppBarButton x:Name="MoreButton" Label="Diğer" Width="44" ToolTipService.ToolTip="Görünüm ve arşiv bilgisi">
+                <AppBarButton x:Name="MoreButton" Label="Diğer" Width="44" ToolTipService.ToolTip="Arşiv bilgisi ve görünüm">
                     <AppBarButton.Icon><FontIcon Glyph="&#xE712;" /></AppBarButton.Icon>
                     <AppBarButton.Flyout>
                         <MenuFlyout Placement="BottomEdgeAlignedRight" Opening="OnViewMenuOpening">
                             <MenuFlyoutItem Text="Arşiv bilgisi" Click="OnShowInfo">
                                 <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE946;" /></MenuFlyoutItem.Icon>
                             </MenuFlyoutItem>
-                            <MenuFlyoutSeparator />
-                            <RadioMenuFlyoutItem x:Name="PreviewBottomItem" Text="Önizleme altta" GroupName="PreviewPlacement" Click="OnPreviewBottom" />
-                            <RadioMenuFlyoutItem x:Name="PreviewRightItem" Text="Önizleme sağda" GroupName="PreviewPlacement" Click="OnPreviewRight" />
                             <MenuFlyoutSeparator />
                             <MenuFlyoutSubItem Text="Sütunlar">
                                 <ToggleMenuFlyoutItem x:Name="ModifiedColumnItem" Text="Değiştirilme" Click="OnToggleColumn" />
@@ -174,7 +143,7 @@
             </InfoBar>
         </StackPanel>
 
-        <!-- Gövde: [ağaç | ayraç] liste + önizleme -->
+        <!-- Gövde: [ağaç | ayraç] liste -->
         <Grid x:Name="Body" Grid.Row="2" Background="{ThemeResource BodyBrush}"
               BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
             <Grid.ColumnDefinitions>
@@ -199,88 +168,82 @@
             </TreeView>
             <views:SplitterHandle x:Name="TreeSplitter" Grid.Column="1" Visibility="Collapsed" />
 
-            <!-- Liste ve önizleme: satır/sütun tanımları ApplyLayout'ta (altta ya da sağda) -->
-            <Grid x:Name="ContentArea" Grid.Column="2">
-                <Grid x:Name="ListPane" SizeChanged="OnListPaneSizeChanged">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
+            <Grid x:Name="ListPane" Grid.Column="2" SizeChanged="OnListPaneSizeChanged">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
 
-                    <!-- Sıralanabilir kolon başlıkları. Görünen sütunlar ayar + genişliğe göre (UpdateColumns). -->
-                    <Grid x:Name="HeaderGrid" Height="28" Padding="14,0,16,0">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="96" />
-                            <ColumnDefinition Width="0" />
-                            <ColumnDefinition Width="0" />
-                            <ColumnDefinition Width="0" />
-                            <ColumnDefinition Width="140" />
-                        </Grid.ColumnDefinitions>
-                        <Button Style="{StaticResource HeaderButton}" HorizontalContentAlignment="Left" Tag="Name" Click="OnSortClick"
-                                Content="{x:Bind ViewModel.NameHeader, Mode=OneWay}" />
-                        <Button Grid.Column="1" Margin="12,0,0,0" Style="{StaticResource HeaderButton}" HorizontalContentAlignment="Right" Tag="Size" Click="OnSortClick"
-                                Content="{x:Bind ViewModel.SizeHeader, Mode=OneWay}" />
-                        <Button Grid.Column="2" Margin="12,0,0,0" Style="{StaticResource HeaderButton}" HorizontalContentAlignment="Right" Tag="PackedSize" Click="OnSortClick"
-                                Content="{x:Bind ViewModel.PackedHeader, Mode=OneWay}" />
-                        <Button Grid.Column="3" Margin="12,0,0,0" Style="{StaticResource HeaderButton}" HorizontalContentAlignment="Right" Tag="Ratio" Click="OnSortClick"
-                                Content="{x:Bind ViewModel.RatioHeader, Mode=OneWay}" />
-                        <Button Grid.Column="4" Margin="12,0,0,0" Style="{StaticResource HeaderButton}" HorizontalContentAlignment="Left" Tag="Method" Click="OnSortClick"
-                                Content="{x:Bind ViewModel.MethodHeader, Mode=OneWay}" />
-                        <Button Grid.Column="5" Margin="12,0,0,0" Style="{StaticResource HeaderButton}" HorizontalContentAlignment="Left" Tag="Modified" Click="OnSortClick"
-                                Content="{x:Bind ViewModel.ModifiedHeader, Mode=OneWay}" />
-                    </Grid>
-
-                    <ListView x:Name="EntriesList" Grid.Row="1" Padding="0,0,0,4"
-                              ItemsSource="{x:Bind ViewModel.Items}"
-                              ItemContainerStyle="{StaticResource CompactRowStyle}"
-                              SelectionMode="Extended"
-                              IsDoubleTapEnabled="True"
-                              SelectionChanged="OnSelectionChanged"
-                              DoubleTapped="OnItemDoubleTapped"
-                              KeyDown="OnListKeyDown"
-                              ContextRequested="OnListContextRequested"
-                              ContainerContentChanging="OnContainerContentChanging"
-                              CanDragItems="True" DragItemsStarting="OnDragItemsStarting"
-                              AllowDrop="True" DragOver="OnListDragOver" Drop="OnListDrop">
-                        <ListView.ItemTemplate>
-                            <DataTemplate x:DataType="vm:EntryItem">
-                                <Grid ToolTipService.ToolTip="{x:Bind ToolTip}">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="96" />
-                                        <ColumnDefinition Width="0" />
-                                        <ColumnDefinition Width="0" />
-                                        <ColumnDefinition Width="0" />
-                                        <ColumnDefinition Width="140" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                                        <Grid Width="16">
-                                            <FontIcon Glyph="{x:Bind Glyph}" FontSize="15" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
-                                                      Visibility="{x:Bind IsFolder}" />
-                                            <FontIcon Glyph="{x:Bind Glyph}" FontSize="15" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                      Visibility="{x:Bind IsFile}" />
-                                        </Grid>
-                                        <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
-                                    </StackPanel>
-                                    <TextBlock Grid.Column="1" Text="{x:Bind SizeText}" Style="{StaticResource Secondary}" HorizontalAlignment="Right" />
-                                    <TextBlock Grid.Column="2" Text="{x:Bind PackedText}" Style="{StaticResource Secondary}" HorizontalAlignment="Right" />
-                                    <TextBlock Grid.Column="3" Text="{x:Bind RatioText}" Style="{StaticResource Secondary}" HorizontalAlignment="Right" />
-                                    <TextBlock Grid.Column="4" Text="{x:Bind MethodText}" Style="{StaticResource Secondary}" />
-                                    <TextBlock Grid.Column="5" Text="{x:Bind ModifiedText}" Style="{StaticResource Secondary}" />
-                                </Grid>
-                            </DataTemplate>
-                        </ListView.ItemTemplate>
-                    </ListView>
-
-                    <!-- Boş klasör ya da sonuçsuz arama -->
-                    <TextBlock Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,0,40"
-                               Foreground="{ThemeResource TextFillColorTertiaryBrush}" IsHitTestVisible="False"
-                               Text="{x:Bind ViewModel.EmptyText, Mode=OneWay}" Visibility="{x:Bind ViewModel.IsListEmpty, Mode=OneWay}" />
+                <!-- Sıralanabilir kolon başlıkları. Görünen sütunlar ayar + genişliğe göre (UpdateColumns). -->
+                <Grid x:Name="HeaderGrid" Height="28" Padding="14,0,16,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="96" />
+                        <ColumnDefinition Width="0" />
+                        <ColumnDefinition Width="0" />
+                        <ColumnDefinition Width="0" />
+                        <ColumnDefinition Width="140" />
+                    </Grid.ColumnDefinitions>
+                    <Button Style="{StaticResource HeaderButton}" HorizontalContentAlignment="Left" Tag="Name" Click="OnSortClick"
+                            Content="{x:Bind ViewModel.NameHeader, Mode=OneWay}" />
+                    <Button Grid.Column="1" Margin="12,0,0,0" Style="{StaticResource HeaderButton}" HorizontalContentAlignment="Right" Tag="Size" Click="OnSortClick"
+                            Content="{x:Bind ViewModel.SizeHeader, Mode=OneWay}" />
+                    <Button Grid.Column="2" Margin="12,0,0,0" Style="{StaticResource HeaderButton}" HorizontalContentAlignment="Right" Tag="PackedSize" Click="OnSortClick"
+                            Content="{x:Bind ViewModel.PackedHeader, Mode=OneWay}" />
+                    <Button Grid.Column="3" Margin="12,0,0,0" Style="{StaticResource HeaderButton}" HorizontalContentAlignment="Right" Tag="Ratio" Click="OnSortClick"
+                            Content="{x:Bind ViewModel.RatioHeader, Mode=OneWay}" />
+                    <Button Grid.Column="4" Margin="12,0,0,0" Style="{StaticResource HeaderButton}" HorizontalContentAlignment="Left" Tag="Method" Click="OnSortClick"
+                            Content="{x:Bind ViewModel.MethodHeader, Mode=OneWay}" />
+                    <Button Grid.Column="5" Margin="12,0,0,0" Style="{StaticResource HeaderButton}" HorizontalContentAlignment="Left" Tag="Modified" Click="OnSortClick"
+                            Content="{x:Bind ViewModel.ModifiedHeader, Mode=OneWay}" />
                 </Grid>
 
-                <views:SplitterHandle x:Name="PreviewSplitter" />
-                <Border x:Name="PreviewHost" />
+                <ListView x:Name="EntriesList" Grid.Row="1" Padding="0,0,0,4"
+                          ItemsSource="{x:Bind ViewModel.Items}"
+                          ItemContainerStyle="{StaticResource CompactRowStyle}"
+                          SelectionMode="Extended"
+                          IsDoubleTapEnabled="True"
+                          SelectionChanged="OnSelectionChanged"
+                          DoubleTapped="OnItemDoubleTapped"
+                          KeyDown="OnListKeyDown"
+                          ContextRequested="OnListContextRequested"
+                          ContainerContentChanging="OnContainerContentChanging"
+                          CanDragItems="True" DragItemsStarting="OnDragItemsStarting"
+                          AllowDrop="True" DragOver="OnListDragOver" Drop="OnListDrop">
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="vm:EntryItem">
+                            <Grid ToolTipService.ToolTip="{x:Bind ToolTip}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="96" />
+                                    <ColumnDefinition Width="0" />
+                                    <ColumnDefinition Width="0" />
+                                    <ColumnDefinition Width="0" />
+                                    <ColumnDefinition Width="140" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                    <Grid Width="16">
+                                        <FontIcon Glyph="{x:Bind Glyph}" FontSize="15" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                                  Visibility="{x:Bind IsFolder}" />
+                                        <FontIcon Glyph="{x:Bind Glyph}" FontSize="15" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                  Visibility="{x:Bind IsFile}" />
+                                    </Grid>
+                                    <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <TextBlock Grid.Column="1" Text="{x:Bind SizeText}" Style="{StaticResource Secondary}" HorizontalAlignment="Right" />
+                                <TextBlock Grid.Column="2" Text="{x:Bind PackedText}" Style="{StaticResource Secondary}" HorizontalAlignment="Right" />
+                                <TextBlock Grid.Column="3" Text="{x:Bind RatioText}" Style="{StaticResource Secondary}" HorizontalAlignment="Right" />
+                                <TextBlock Grid.Column="4" Text="{x:Bind MethodText}" Style="{StaticResource Secondary}" />
+                                <TextBlock Grid.Column="5" Text="{x:Bind ModifiedText}" Style="{StaticResource Secondary}" />
+                            </Grid>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+
+                <!-- Boş klasör ya da sonuçsuz arama -->
+                <TextBlock Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,0,40"
+                           Foreground="{ThemeResource TextFillColorTertiaryBrush}" IsHitTestVisible="False"
+                           Text="{x:Bind ViewModel.EmptyText, Mode=OneWay}" Visibility="{x:Bind ViewModel.IsListEmpty, Mode=OneWay}" />
             </Grid>
         </Grid>
     </Grid>

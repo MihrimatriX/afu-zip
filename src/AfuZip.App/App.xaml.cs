@@ -2,7 +2,6 @@ using AfuZip.App.Services;
 using AfuZip.App.ViewModels;
 using AfuZip.App.Views;
 using AfuZip.Core;
-using AfuZip.Core.Preview;
 using AfuZip.Engine.Managed;
 using AfuZip.Engine.SevenZip;
 using Microsoft.Extensions.DependencyInjection;
@@ -76,7 +75,6 @@ public partial class App : Application
         _ = Task.Run(() =>
         {
             TempFolders.CleanupStale(TimeSpan.FromDays(1));
-            PreviewCache.CleanupStale();
         });
 
         ShellIntegration.RefreshIfMoved();
@@ -218,9 +216,9 @@ public partial class App : Application
         if (_main is not null)
             return _main;
 
-        // Ana pencere kapanıp yeniden açılabildiği için (ilerleme penceresi açıkken) görünüm modeli ve
-        // önizleme önbelleği her pencereyle birlikte yeniden oluşturulur.
-        var viewModel = ActivatorUtilities.CreateInstance<MainViewModel>(_host.Services, new PreviewCache());
+        // Ana pencere kapanıp yeniden açılabildiği için (ilerleme penceresi açıkken) görünüm modeli her
+        // pencereyle birlikte yeniden oluşturulur.
+        var viewModel = ActivatorUtilities.CreateInstance<MainViewModel>(_host.Services);
         var window = new MainWindow(viewModel);
         window.Activated += (_, e) => OnWindowActivated(window, e);
         window.Closed += (_, _) =>
