@@ -210,7 +210,9 @@ try {
   [Mouse]::ShiftRightClick($x, $y)
   Start-Sleep -Seconds 2
   ShotScreen '12-explorer-klasik'
-  Open-AfuZip '13-explorer-klasik-alt'
+  # Klasik (Win32) menünün öğeleri UI Automation'da her zaman görünmüyor: klavyeyle ikinci öğeye (AFU Zip) inip açılır.
+  [System.Windows.Forms.SendKeys]::SendWait('{DOWN}{DOWN}{RIGHT}'); Start-Sleep -Seconds 2
+  ShotScreen '13-explorer-klasik-alt'
   Keys $eh '{ESC}{ESC}{ESC}'
   try { ($win.GetCurrentPattern([System.Windows.Automation.WindowPattern]::Pattern)).Close() } catch { }
 } catch { Write-Host "Explorer: $_"; ShotScreen '10-explorer-hata' }
